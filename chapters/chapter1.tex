@@ -1,0 +1,557 @@
+\chapter{Hashing}
+\label{ch:hashing}
+
+El hashing es una técnica fundamental en estructuras de datos que permite almacenar y recuperar información de manera extremadamente rápida. A diferencia de las búsquedas secuenciales en listas o arreglos, el hashing utiliza una función matemática para determinar la ubicación exacta de un dato en la memoria.
+
+\section{Idea Básica}
+\label{sec:idea-basica}
+
+\begin{definicion}{Hashing}
+El hashing es una técnica que transforma una clave (key) en una posición específica dentro de una estructura de datos llamada \textbf{tabla hash} (hash table). Esta transformación se realiza mediante una \textbf{función hash}, que convierte la clave en un índice numérico. La ventaja principal es que permite acceder a los datos en tiempo constante \( O(1) \) en promedio, sin necesidad de recorrer toda la estructura.
+\end{definicion}
+
+\begin{observacion}
+Piense en el hashing como el sistema de buzones de un edificio:
+\begin{itemize}
+    \item Cada persona tiene un nombre (clave).
+    \item Una regla (función hash) asigna un número de buzón (índice).
+    \item Para entregar o recoger correo, se va directamente al buzón correspondiente, sin revisar todos los buzones.
+\end{itemize}
+\end{observacion}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[font=\sffamily, node distance=1.5cm]
+        % --- Colores Catppuccin (Mocha) para alto contraste ---
+        \definecolor{keybg}{RGB}{137, 180, 250}      % CtpBlue
+        \definecolor{hashbg}{RGB}{202, 158, 230}     % CtpMauve
+        \definecolor{bucketfill}{RGB}{166, 218, 149} % CtpGreen
+        \definecolor{bucketempty}{RGB}{69, 71, 90}   % CtpSurface0
+        \colorlet{textcolor}{CtpText}      % Blanco roto
+        \colorlet{border}{CtpOverlay2}     % Borde sutil
+
+        % --- Keys ---
+        \node[draw=border, fill=keybg, text=CtpBase, minimum width=2.5cm, minimum height=0.8cm] (k1) at (-5, 2) {John Smith};
+        \node[draw=border, fill=keybg, text=CtpBase, minimum width=2.5cm, minimum height=0.8cm] (k2) at (-5, 0) {Lisa Smith};
+        \node[draw=border, fill=keybg, text=CtpBase, minimum width=2.5cm, minimum height=0.8cm] (k3) at (-5, -2) {Sandra Dee};
+
+        % --- Hash function ---
+        \node[draw=border, fill=hashbg, text=CtpBase, minimum width=1.5cm, minimum height=4.5cm, align=center] (hf) at (-2, 0) {hash\\function};
+
+        % --- Buckets vacíos (índices: 0,3,4,5,6,7,8,9,10,11,12,13,15) ---
+        \foreach \i in {0,3,4,5,6,7,8,9,10,11,12,13,15} {
+            \node[draw=border, fill=bucketempty, text=textcolor, minimum width=1.5cm, minimum height=0.6cm] (b\i) at (3, 3.6 - \i*0.6) {};
+            \node[left=0.1cm of b\i, text=textcolor] (index\i) {\(\twodigits{\i}\)};
+        }
+
+        % --- Buckets ocupados (índices: 1, 2, 14) ---
+        \foreach \i in {1,2,14} {
+            \node[draw=border, fill=bucketfill, text=CtpBase, minimum width=1.5cm, minimum height=0.6cm] (b\i) at (3, 3.6 - \i*0.6) {};
+            \node[left=0.1cm of b\i, text=textcolor] (index\i) {\(\twodigits{\i}\)};
+        }
+
+        % --- Conexión 1: Keys → Hash function ---
+        \draw[-latex, thick, draw=CtpOverlay1] (k1) -- (hf);
+        \draw[-latex, thick, draw=CtpOverlay1] (k2) -- (hf);
+        \draw[-latex, thick, draw=CtpOverlay1] (k3) -- (hf);
+
+        % --- Conexión 2: Hash function → Número del bucket ---
+        \draw[-latex, thick, draw=CtpOverlay1, shorten >= 2pt] (hf) -- (index1);
+        \draw[-latex, thick, draw=CtpOverlay1, shorten >= 2pt] (hf) -- (index2);
+        \draw[-latex, thick, draw=CtpOverlay1, shorten >= 2pt] (hf) -- (index14);
+
+        % --- Contenido de los buckets ocupados ---
+        \node[draw=border, fill=bucketfill, text=CtpBase, minimum width=1.5cm, minimum height=0.6cm] at (b1) {521-8976};
+        \node[draw=border, fill=bucketfill, text=CtpBase, minimum width=1.5cm, minimum height=0.6cm] at (b2) {521-1234};
+        \node[draw=border, fill=bucketfill, text=CtpBase, minimum width=1.5cm, minimum height=0.6cm] at (b14) {521-9655};
+
+        % --- Etiquetas ---
+        \node[above=0.5cm of k1, text=textcolor] {\textbf{keys}};
+        \node[above=0.5cm of hf, text=textcolor] {\textbf{hash function}};
+        \node[above=0.5cm of index0, text=textcolor] {\textbf{buckets}};
+    \end{tikzpicture}
+    \caption{Esquema básico del hashing: las claves se transforman en índices mediante una función hash.}
+    \label{fig:hashing-basico}
+\end{figure}
+
+\section{Componentes del Hashing}
+\label{sec:componentes}
+
+\begin{definicion}{Componentes del Hashing}
+El hashing involucra tres componentes principales:
+\begin{itemize}
+    \item \textbf{Clave (key)}: Valor utilizado para identificar los datos (ej. ID de estudiante, nombre, número de teléfono).
+    \item \textbf{Función hash}: Función matemática que convierte la clave en un índice numérico.
+    \item \textbf{Tabla hash (hash table)}: Arreglo (array) donde se almacenan los datos en las posiciones determinadas por la función hash.
+\end{itemize}
+\end{definicion}
+
+\begin{acadtable}[htbp]{tab:componentes}{Componentes del hashing}
+    \begin{tabularx}{\textwidth}{l X}
+        \headerrow
+        \textbf{Componente} & \textbf{Descripción} \\
+        \hline
+        Clave & El valor utilizado para identificar datos (ej. ID, nombre, número) \\
+        Función hash & Una función matemática que convierte la clave en un índice \\
+        Tabla hash & Un arreglo donde se almacenan los datos \\
+    \end{tabularx}
+\end{acadtable}
+
+\section{Ejemplo de Función Hash}
+\label{sec:ejemplo-funcion}
+
+\begin{ejemplo}{Función hash simple}
+Supongamos que tenemos una tabla hash de tamaño \(10\). La función hash es:
+\[
+h(\text{clave}) = \text{clave} \bmod 10
+\]
+
+Insertamos las claves: \(23, 45, 12, 37\). Las posiciones se calculan como:
+\end{ejemplo}
+
+\begin{acadtable}[htbp]{tab:insercion}{Inserción de claves en la tabla hash}
+    \begin{tabularx}{\textwidth}{c c c}
+        \headerrow
+        \textbf{Clave} & \textbf{Función hash} & \textbf{Índice} \\
+        \hline
+        \(23\) & \(23 \bmod 10\) & \(3\) \\
+        \(45\) & \(45 \bmod 10\) & \(5\) \\
+        \(12\) & \(12 \bmod 10\) & \(2\) \\
+        \(37\) & \(37 \bmod 10\) & \(7\) \\
+    \end{tabularx}
+\end{acadtable}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[font=\sffamily]
+        % --- Colores Catppuccin (Mocha) ---
+        \colorlet{keybg}{CtpBlue}      % CtpBlue
+        \colorlet{hashbg}{CtpGreen}     % CtpGreen
+        \colorlet{emptybg}{CtpSurface0}       % CtpSurface0
+        \colorlet{textcolor}{CtpText}
+        \colorlet{border}{CtpOverlay2}
+
+        \def\cellw{1.0cm}
+        \def\cellh{0.7cm}
+
+        % --- 1. Dibujar TODAS las celdas vacías de la tabla hash (0-9) ---
+        \foreach \i in {0,...,9} {
+            \node[draw=border, fill=emptybg, text=textcolor, minimum width=\cellw, minimum height=\cellh] at ({\i*\cellw}, -1.5) {\i};
+        }
+
+        % --- 2. Dibujar solo las celdas ocupadas (2,3,5,7) de la tabla hash ---
+        \node[draw=border, fill=hashbg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at ({2*\cellw}, -1.5) {12};
+        \node[draw=border, fill=hashbg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at ({3*\cellw}, -1.5) {23};
+        \node[draw=border, fill=hashbg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at ({5*\cellw}, -1.5) {45};
+        \node[draw=border, fill=hashbg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at ({7*\cellw}, -1.5) {37};
+
+        % --- 3. Dibujar la fila de claves (23,45,12,37) ---
+        \node[draw=border, fill=keybg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at (0, 2.0) {23};
+        \node[draw=border, fill=keybg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at ({1*\cellw}, 2.0) {45};
+        \node[draw=border, fill=keybg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at ({2*\cellw}, 2.0) {12};
+        \node[draw=border, fill=keybg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at ({3*\cellw}, 2.0) {37};
+
+        % --- 4. Dibujar la fila de índices calculados (3,5,2,7) ---
+        \node[draw=border, fill=hashbg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at (0, 0.5) {3};
+        \node[draw=border, fill=hashbg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at ({1*\cellw}, 0.5) {5};
+        \node[draw=border, fill=hashbg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at ({2*\cellw}, 0.5) {2};
+        \node[draw=border, fill=hashbg, text=CtpBase, minimum width=\cellw, minimum height=\cellh] at ({3*\cellw}, 0.5) {7};
+
+        % --- 5. Flechas verticales (Clave → Índice) ---
+        \foreach \i in {0,1,2,3} {
+            \draw[-latex, thick, draw=CtpOverlay1] ({\i*\cellw}, 1.7) -- ({\i*\cellw}, 0.8);
+        }
+
+        % --- 6. Etiquetas ---
+        \node[text=textcolor, anchor=east] at (-.5, 2.7) {\textbf{Clave}};
+        \node[text=textcolor, anchor=east] at (-.5, 1.2) {\textbf{Índice calculado}};
+        \node[text=textcolor, anchor=east] at (-.5, -0.8) {\textbf{Tabla Hash}};
+    \end{tikzpicture}
+    \caption{Inserción de claves: cada clave se mapea a su índice mediante \(h(k) = k \bmod 10\).}
+    \label{fig:insercion-correcta}
+\end{figure}
+
+\begin{observacion}
+Para buscar un valor, por ejemplo \(45\), calculamos \(45 \bmod 10 = 5\) y vamos directamente al índice \(5\). No es necesario buscar en toda la tabla.
+\end{observacion}
+
+\section{Importancia del Hashing}
+\label{sec:importancia}
+
+El hashing es fundamental porque proporciona operaciones muy rápidas en promedio:
+
+\begin{acadtable}[htbp]{tab:complejidad}{Complejidad temporal de operaciones en hashing}
+    \begin{tabularx}{\textwidth}{l c}
+        \headerrow
+        \textbf{Operación} & \textbf{Complejidad temporal promedio} \\
+        \hline
+        Insertar & \(O(1)\) \\
+        Buscar & \(O(1)\) \\
+        Eliminar & \(O(1)\) \\
+    \end{tabularx}
+\end{acadtable}
+
+\section{Colisiones}
+\label{sec:colisiones}
+
+\begin{definicion}{Colisión}
+Una colisión ocurre cuando dos claves diferentes producen el mismo índice mediante la función hash. Por ejemplo:
+\[
+23 \bmod 10 = 3 \quad \text{y} \quad 33 \bmod 10 = 3
+\]
+Ambas claves se asignan al índice \(3\). Esto se llama \textbf{colisión}.
+\end{definicion}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[font=\sffamily]
+        % Keys
+        \node[draw, rectangle, text=CtpBase, minimum width=2cm, fill=CtpBlue] (k1) at (-4, 1) {23};
+        \node[draw, rectangle, text=CtpBase, minimum width=2cm,  fill=CtpBlue] (k2) at (-4, -1) {33};
+        
+        % Hash function
+        \node[draw, rectangle, text=CtpBase, fill=CtpGreen, minimum width=2cm, minimum height=2cm] (hf) at (-1.5, 0) {hash};
+        
+        % Buckets
+        \foreach \i in {0,...,9} {
+            \node[draw, rectangle, minimum width=2cm, minimum height=0.6cm] (b\i) at (2, 3 - \i*0.6) {};
+            \node[left=0.1cm of b\i, font=\small] {\(\i\)};
+        }
+        
+        % Fill bucket 3
+        \node[draw, rectangle, text=CtpBase, fill=CtpRed, minimum width=2cm, minimum height=0.6cm] at (b3) {23};
+        \node[above=0.1cm of b3, font=\scriptsize, color=CtpRed] {Colisión};
+        
+        % Connections
+        \draw[-latex, thick] (k1) -- (hf);
+        \draw[-latex, thick] (k2) -- (hf);
+        \draw[-latex, thick] (hf) -- (b3);
+        \draw[-latex, thick] (hf) -- (b3);
+    \end{tikzpicture}
+    \caption{Colisión: \(23\) y \(33\) apuntan al mismo índice \(3\).}
+    \label{fig:colision}
+\end{figure}
+
+\section{Métodos de Resolución de Colisiones}
+\label{sec:metodos-resolucion}
+
+Las estructuras de datos resuelven colisiones usando métodos como:
+\begin{itemize}
+    \item \textbf{Separate Chaining} (encadenamiento separado)
+    \item \textbf{Linear Probing} (sondeo lineal)
+    \item \textbf{Quadratic Probing} (sondeo cuadrático)
+    \item \textbf{Double Hashing} (doble hashing)
+\end{itemize}
+
+\subsection{Separate Chaining}
+\label{subsec:chaining}
+
+\begin{definicion}{Separate Chaining}
+En separate chaining, cada índice de la tabla hash almacena una lista (generalmente una lista enlazada) de elementos. Cuando varias claves producen el mismo índice, se encadenan entre sí formando una lista.
+\end{definicion}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[font=\sffamily, node distance=0.6cm]
+        % Array
+        \foreach \i in {0,...,7} {
+            \node[draw, rectangle, minimum width=1.5cm, minimum height=0.8cm] (arr\i) at (0, -\i*1) {};
+            \node[left=0.1cm of arr\i, font=\small] {\(\i\)};
+        }
+        
+        % Chain at index 0
+        \node[draw, rectangle, fill=CtpBlue] at (arr0) {};
+        
+        % Chain at index 1
+        \node[draw, rectangle, text=CtpBase, fill=CtpBlue, minimum width=1.5cm, minimum height=0.8cm] (n1) at (2, -1) {21};
+        \node[draw, rectangle, text=CtpBase, fill=CtpBlue, minimum width=1.5cm, minimum height=0.8cm] (n2) at (4, -1) {31};
+        \node[draw, rectangle, text=CtpBase, fill=CtpBlue, minimum width=1.5cm, minimum height=0.8cm] (n3) at (6, -1) {41};
+        \draw[-latex, thick] (arr1) -- (n1);
+        \draw[-latex, thick] (n1) -- (n2);
+        \draw[-latex, thick] (n2) -- (n3);
+        
+        % Chain at index 2
+        \node[draw, rectangle, text=CtpBase, fill=CtpBlue, minimum width=1.5cm, minimum height=0.8cm] at (arr2) {};
+        
+        % Chain at index 3
+        \node[draw, rectangle, text=CtpBase, fill=CtpBlue, minimum width=1.5cm, minimum height=0.8cm] (n4) at (2, -3) {12};
+        \node[draw, rectangle, text=CtpBase, fill=CtpBlue, minimum width=1.5cm, minimum height=0.8cm] (n5) at (4, -3) {22};
+        \draw[-latex, thick] (arr3) -- (n4);
+        \draw[-latex, thick] (n4) -- (n5);
+        
+        % Chain at index 4
+        \node[draw, rectangle, fill=CtpBlue] at (arr4) {};
+        
+        % Chain at index 5
+        \node[draw, rectangle, fill=CtpBlue] at (arr5) {};
+        
+        % Chain at index 6
+        \node[draw, rectangle, fill=CtpBlue] at (arr6) {};
+        
+        % Chain at index 7
+        \node[draw, rectangle, fill=CtpBlue] at (arr7) {};
+        
+        \node[above=0.5cm of arr0] {Índice};
+        \node at (4, 0.5) {Lista enlazada};
+    \end{tikzpicture}
+    \caption{Separate Chaining: cada bucket contiene una lista enlazada de elementos.}
+    \label{fig:chaining}
+\end{figure}
+
+\begin{algorithm}[H]
+\caption{Inserción con Separate Chaining}
+\label{alg:chaining-insert}
+\KwIn{\(key\): clave a insertar, \(T\): tabla hash, \(size\): tamaño de la tabla}
+\KwOut{\(T\) actualizada}
+\(index \leftarrow h(key) \bmod size\)\;
+\eIf{\(T[index]\) es vacío}{
+    \(T[index] \leftarrow \text{nueva lista con } key\)\;
+}{
+    \(T[index].\text{insertar}(key)\)\;
+}
+\Return \(T\)\;
+\end{algorithm}
+
+\subsection{Linear Probing}
+\label{subsec:linear-probing}
+
+\begin{definicion}{Linear Probing}
+En linear probing, si la posición calculada por la función hash está ocupada, se busca secuencialmente la siguiente posición libre (linealmente) hasta encontrar un espacio vacío. La secuencia de sondeo es:
+\[
+h(k), h(k)+1, h(k)+2, \ldots \pmod{m}
+\]
+donde \(m\) es el tamaño de la tabla.
+\end{definicion}
+
+\begin{ejemplo}{Linear Probing}
+Supongamos \(h(k) = k \bmod 10\).
+\begin{itemize}
+    \item Insertar \(15 \rightarrow\) índice \(5\) (libre)
+    \item Insertar \(25 \rightarrow\) índice \(5\) (ocupado) \(\rightarrow\) probar índice \(6\) (libre) \(\rightarrow\) guardar en \(6\)
+\end{itemize}
+La tabla resultante:
+\end{ejemplo}
+
+\begin{acadtable}[htbp]{tab:linear-probing}{Ejemplo de linear probing}
+    \begin{tabularx}{\textwidth}{c c}
+        \headerrow
+        \textbf{Índice} & \textbf{Valor} \\
+        \hline
+        \(5\) & \(15\) \\
+        \(6\) & \(25\) \\
+    \end{tabularx}
+\end{acadtable}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[font=\sffamily]
+        % Array
+        \foreach \i in {0,...,9} {
+            \node[draw, rectangle, minimum width=1cm, minimum height=0.6cm] (a\i) at (\i, 0) {};
+            \node[above=0.1cm of a\i, font=\small] {\(\i\)};
+        }
+        % Fill values
+        \node[text=CtpBase, fill=CtpRed] at (a5) {15};
+        \node[text=CtpBase, fill=CtpBlue] at (a6) {25};
+        
+        % Arrow showing probing
+        \draw[->, thick, dashed, CtpMauve] (a5) to[bend left] (a6);
+        \node at (5.5, 1.2) {probing};
+    \end{tikzpicture}
+    \caption{Linear probing: \(25\) colisiona en índice \(5\) y se coloca en el siguiente espacio libre (\(6\)).}
+    \label{fig:linear-probing}
+\end{figure}
+
+\begin{algorithm}[H]
+\caption{Inserción con Linear Probing}
+\label{alg:linear-probing-insert}
+\KwIn{\(key\): clave a insertar, \(T\): tabla hash, \(size\): tamaño de la tabla}
+\KwOut{\(T\) actualizada o error si está llena}
+\(index \leftarrow h(key) \bmod size\)\;
+\(i \leftarrow 0\)\;
+\While{\(i < size\) y \(T[(index + i) \bmod size]\) no está vacío}{
+    \(i \leftarrow i + 1\)\;
+}
+\If{\(i < size\)}{
+    \(T[(index + i) \bmod size] \leftarrow key\)\;
+}
+\Else{
+    \Return error ``Tabla llena''\;
+}
+\Return \(T\)\;
+\end{algorithm}
+
+\begin{observacion}
+El problema principal de linear probing es el \textbf{agrupamiento primario}: cuando se forman grupos de celdas llenas, el rendimiento se degrada.
+\end{observacion}
+
+\subsection{Quadratic Probing}
+\label{subsec:quadratic-probing}
+
+\begin{definicion}{Quadratic Probing}
+En quadratic probing, la secuencia de sondeo utiliza saltos cuadrados para evitar el agrupamiento primario. La fórmula general es:
+\[
+\text{probe}_i = h(k) + a \cdot i + b \cdot i^2 \pmod{m}
+\]
+Un caso común es:
+\[
+h(k), h(k)+1^2, h(k)+2^2, h(k)+3^2, \ldots \pmod{m}
+\]
+\end{definicion}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[font=\sffamily]
+        % Array
+        \foreach \i in {0,...,9} {
+            \node[draw, rectangle, minimum width=0.8cm, minimum height=0.6cm] (a\i) at (\i*1.2, 0) {};
+            \node[below=0.1cm of a\i, font=\small] {\(\i\)};
+        }
+        % Probing sequence from index 5
+        \node[text=CtpBase, fill=CtpRed] at (a5) {1};
+        \node[text=CtpBase, fill=CtpYellow] at (a6) {2};
+        \node[text=CtpBase, fill=CtpBlue] at (a9) {3};  % 5+4=9
+        \draw[->, thick] (a5) to[bend left] (a6);
+        \draw[->, thick] (a6) to[bend left] (a9);
+        \node at (5, 0.8) {\(h\)};
+        \node at (6, 0.8) {\(h+1\)};
+        \node at (9, 0.8) {\(h+4\)};
+    \end{tikzpicture}
+    \caption{Quadratic probing: saltos de \(1, 4, 9, \ldots\) desde la posición inicial \(h\).}
+    \label{fig:quadratic-probing}
+\end{figure}
+
+\begin{algorithm}[H]
+\caption{Inserción con Quadratic Probing}
+\label{alg:quadratic-probing-insert}
+\KwIn{\(key\): clave a insertar, \(T\): tabla hash, \(size\): tamaño de la tabla}
+\KwOut{\(T\) actualizada o error si está llena}
+\(index \leftarrow h(key) \bmod size\)\;
+\(i \leftarrow 0\)\;
+\While{\(i < size\) y \(T[(index + i^2) \bmod size]\) no está vacío}{
+    \(i \leftarrow i + 1\)\;
+}
+\If{\(i < size\)}{
+    \(T[(index + i^2) \bmod size] \leftarrow key\)\;
+}
+\Else{
+    \Return error ``Tabla llena''\;
+}
+\Return \(T\)\;
+\end{algorithm}
+
+\begin{observacion}
+Quadratic probing reduce el agrupamiento, pero puede no revisar todas las posiciones a menos que el tamaño de la tabla sea un número primo.
+\end{observacion}
+
+\subsection{Double Hashing}
+\label{subsec:double-hashing}
+
+\begin{definicion}{Double Hashing}
+Double hashing utiliza dos funciones hash diferentes para determinar la secuencia de sondeo. La fórmula general es:
+\[
+h(k, i) = (h_1(k) + i \cdot h_2(k)) \bmod m
+\]
+donde \(h_1\) es la función hash primaria y \(h_2\) la función hash secundaria.
+\end{definicion}
+
+\begin{ejemplo}{Double Hashing}
+Dadas las funciones:
+\[
+h_1(k) = k \bmod 10 \quad \text{y} \quad h_2(k) = 7 - (k \bmod 7)
+\]
+Para \(k = 49\):
+\[
+h_1(49) = 49 \bmod 10 = 9
+\]
+\[
+h_2(49) = 7 - (49 \bmod 7) = 7 - 0 = 7
+\]
+La secuencia de sondeo es:
+\[
+9, 9+7=16 \bmod 10=6, 9+14=23 \bmod 10=3, \ldots
+\]
+\end{ejemplo}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[font=\sffamily]
+        % Table with two hash functions
+        \node[draw, rectangle, fill=CtpBase] (h1) at (-3, 1) {\(h_1(k) = k \bmod 10\)};
+        \node[draw, rectangle, fill=CtpBase] (h2) at (-3, -1) {\(h_2(k) = 7 - (k \bmod 7)\)};
+        \node[draw, text=CtpBase, rectangle, fill=CtpBlue] (hk) at (0, 0) {\(h(k,i) = (h_1(k) + i \cdot h_2(k)) \bmod 10\)};
+        
+        \draw[-latex, thick] (h1) -- (hk);
+        \draw[-latex, thick] (h2) -- (hk);
+        
+        % Sequence
+        \node at (4, -1) {Secuencia: \(9, 6, 3, 0, 7, \dots\)};
+    \end{tikzpicture}
+    \caption{Double hashing: dos funciones hash determinan la secuencia de sondeo.}
+    \label{fig:double-hashing}
+\end{figure}
+
+\begin{algorithm}[H]
+\caption{Inserción con Double Hashing}
+\label{alg:double-hashing-insert}
+\KwIn{\(key\): clave a insertar, \(T\): tabla hash, \(size\): tamaño de la tabla}
+\KwOut{\(T\) actualizada o error si está llena}
+\(h_1 \leftarrow key \bmod size\)\;
+\(h_2 \leftarrow 7 - (key \bmod 7)\)\;
+\(i \leftarrow 0\)\;
+\While{\(i < size\) y \(T[(h_1 + i \cdot h_2) \bmod size]\) no está vacío}{
+    \(i \leftarrow i + 1\)\;
+}
+\If{\(i < size\)}{
+    \(T[(h_1 + i \cdot h_2) \bmod size] \leftarrow key\)\;
+}
+\Else{
+    \Return error ``Tabla llena''\;
+}
+\Return \(T\)\;
+\end{algorithm}
+
+\begin{observacion}
+Una elección común para \(h_2\) es:
+\[
+h_2(k) = R - (k \bmod R)
+\]
+donde \(R\) es un número primo menor que el tamaño de la tabla \(m\). Esto asegura que la secuencia de sondeo cubra todas las posiciones.
+\end{observacion}
+
+\section{Aplicaciones del Hashing}
+\label{sec:aplicaciones}
+
+El hashing se utiliza en numerosas estructuras de datos y sistemas:
+\begin{itemize}
+    \item HashMap (Java, Python, C++)
+    \item HashSet
+    \item Diccionarios (Python dict)
+    \item Indexación de bases de datos
+    \item Almacenamiento de contraseñas (hash de contraseñas)
+    \item Sistemas de caché
+\end{itemize}
+
+En Java, ejemplos concretos incluyen:
+\begin{itemize}
+    \item \texttt{HashMap}
+    \item \texttt{HashSet}
+    \item \texttt{Hashtable}
+\end{itemize}
+
+\section{Resumen}
+\label{sec:resumen}
+
+\begin{definicion}{Resumen del Hashing}
+El hashing es una técnica que utiliza una función hash para convertir una clave en un índice dentro de una tabla hash, permitiendo una inserción, eliminación y búsqueda rápida de datos en tiempo constante \(O(1)\) en promedio. Las colisiones se manejan mediante métodos como separate chaining, linear probing, quadratic probing o double hashing.
+\end{definicion}
+
+\section{Ejercicio}
+\label{sec:ejercicio}
+
+\begin{ejercicio}
+Dada una tabla hash de tamaño \(10\) y la función hash primaria \(h_1(k) = k \bmod 10\), con función secundaria \(h_2(k) = 7 - (k \bmod 7)\), determine las posiciones finales de las claves: \(79, 69, 98, 72, 14, 50\) utilizando double hashing. Muestre la secuencia de sondeo completa para cada clave.
+\end{ejercicio}
+
+
+\printbibliography[heading=subbibliography]

@@ -1,0 +1,84 @@
+%───────────────────────────────────────────────────────────────────────────────
+% ESTILO PARA ALGORITMOS CON COLORES TEMÁTICOS CATPPUCCIN 
+%───────────────────────────────────────────────────────────────────────────────
+
+% Definir comandos de estilo que toman un argumento
+\newcommand{\algkw}[1]{\textcolor{keywordcolor}{#1}}      % palabras clave (antes CtpMauve)
+\newcommand{\algarg}[1]{\textcolor{maintext}{#1}}          % argumentos (antes CtpText)
+\newcommand{\algcomment}[1]{\textcolor{commentcolor}{#1}}  % comentarios (antes CtpOverlay2)
+\newcommand{\algnum}[1]{\textcolor{operatorcolor}{#1}}     % números de línea (antes CtpSky)
+\newcommand{\algcap}[1]{\textcolor{linkcolor}{#1}}         % caption (antes CtpBlue)
+
+% Aplicar los estilos a algorithm2e (¡sin la barra invertida!)
+\SetKwSty{algkw}
+\SetArgSty{algarg}
+\SetCommentSty{algcomment}
+\SetNlSty{algnum}{}{}
+\SetAlCapSty{algcap}
+
+% Caja decorativa (opcional)
+\tcolorboxenvironment{algorithm}{
+  colback=CtpBase,          % fondo transparente (antes CtpBase!0)
+  colframe=surface0,             % marco sutil (antes CtpSurface0)
+  coltext=CtpText,
+  arc=0pt,
+  boxrule=0pt,
+  left=6pt,
+  right=6pt,
+  top=6pt,
+  bottom=6pt,
+  before skip=10pt,
+  after skip=10pt,
+  drop fuzzy shadow=black!5
+}
+
+% ── Color y grosor de líneas de algoritmos ────────────────────────────────────
+\setlength{\algoheightrule}{0.6pt}       % línea superior e inferior
+\setlength{\algotitleheightrule}{0.5pt}  % línea bajo el caption
+
+\makeatletter
+% Usamos operatorcolor (CtpSky) para las líneas, o puedes definir uno específico
+\newcommand{\algolinecolor}{operatorcolor}    % antes CtpSky
+
+\def\@algocf@pre@ruled{%
+  {\color{\algolinecolor}\hrule width\algocf@ruledwidth
+   height\algoheightrule depth0pt}%
+  \kern\interspacetitleruled}
+
+\def\@algocf@post@ruled{%
+  \kern\interspacealgoruled
+  {\color{\algolinecolor}\hrule width\algocf@ruledwidth
+   height\algoheightrule}}
+
+\renewcommand{\algocf@caption@ruled}{%
+  \box\algocf@capbox
+  \kern\interspacetitleruled
+  {\color{\algolinecolor}\hrule width\algocf@ruledwidth
+   height\algotitleheightrule depth0pt}%
+  \kern\interspacealgoruled}
+\makeatother
+
+% Línea vertical izquierda (para entorno ruled con vlined)
+\makeatletter
+\renewcommand{\algocf@Vline}[1]{%
+  \strut\par\nointerlineskip%
+  \algocf@push{\skiprule}%
+  \hbox{{\color{\algolinecolor}\vrule}%
+    \vtop{\algocf@push{\skiptext}%
+      \vtop{\algocf@addskiptotal #1}\Hlne}}\vskip\skiphlne%
+  \algocf@pop{\skiprule}%
+  \nointerlineskip}
+\makeatother
+
+\makeatletter
+\renewcommand{\algocf@Vsline}[1]{%
+  \strut\par\nointerlineskip%
+  \algocf@bblockcode%
+  \algocf@push{\skiprule}%
+  \hbox{{\color{\algolinecolor}\vrule}%
+    \vtop{\algocf@push{\skiptext}%
+      \vtop{\algocf@addskiptotal #1}}}%
+  \algocf@pop{\skiprule}%
+  \algocf@eblockcode%
+}
+\makeatother

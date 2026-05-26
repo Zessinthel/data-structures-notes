@@ -1,0 +1,529 @@
+% ============================================================
+%  Chapter 3: Árboles (Trees)
+%  Template: latex-catppuccin-academic  |  Motor: pdflatex
+%
+%  DEPENDENCIA NUEVA: este capítulo usa el paquete `forest`
+%  para la composición tipográfica de árboles. Agregar en
+%  config/packages.tex:
+%
+%      \usepackage[linguistics]{forest}
+%
+%  El paquete forest requiere tikz, que ya está cargado.
+% ============================================================
+
+\chapter{Árboles (\textit{Trees})}
+\label{ch:trees}
+
+Los árboles son estructuras de datos jerárquicas y recursivas que resuelven un problema
+fundamental de las tablas hash: la ausencia de orden. Como se vio en el capítulo anterior,
+un \texttt{HashMap} destruye el orden de los datos para ganar velocidad de acceso; un árbol,
+en cambio, preserva ese orden de forma estructural, lo que habilita operaciones como
+recorridos ordenados y consultas por rango en $O(\log n)$. Esta propiedad hace de los árboles
+la base de estructuras como \texttt{TreeMap} y \texttt{TreeSet} en Java, y de algoritmos
+fundamentales en bases de datos e inteligencia artificial.
+
+% ------------------------------------------------------------
+\section{Motivación}
+\label{sec:trees-motivacion}
+% ------------------------------------------------------------
+
+\begin{observacion}{HashMap vs.\ árbol: un intercambio estructural}
+Un \texttt{HashMap} aplica una función hash que dispersa las claves de manera uniforme,
+destruyendo cualquier relación de orden entre ellas: el acceso es $O(1)$ promedio, pero
+preguntas del tipo ``¿cuáles claves están entre $a$ y $b$?'' requieren un recorrido completo
+$O(n)$. Un árbol binario de búsqueda preserva el orden de las claves en su estructura,
+lo que permite responder esa misma pregunta en $O(\log n)$ mediante un recorrido parcial.
+Este intercambio —velocidad puntual versus orden estructural— guía la elección entre ambas
+familias de estructuras.
+\end{observacion}
+
+\begin{acadtable}[htbp]{tab:hashmap-vs-tree}{Comparación: \texttt{HashMap} vs.\ árbol binario de búsqueda}
+    \begin{tabularx}{\textwidth}{l X X}
+        \headerrow
+        \textbf{Criterio} & \textbf{HashMap} & \textbf{Árbol (BST balanceado)} \\
+        \hline
+        Búsqueda puntual   & $O(1)$ promedio, $O(n)$ peor caso & $O(\log n)$ \\
+        Orden de claves    & No garantizado                     & Sí (orden natural) \\
+        Range queries      & $O(n)$                             & $O(\log n)$ \\
+        Recorrido ordenado & No                                 & Sí (\textit{in-order}) \\
+        Rendimiento predecible & No (depende de colisiones)     & Sí (si está balanceado) \\
+    \end{tabularx}
+\end{acadtable}
+
+% ------------------------------------------------------------
+\section{Terminología Fundamental}
+\label{sec:trees-terminologia}
+% ------------------------------------------------------------
+
+\begin{definicion}{Árbol}
+Un \textbf{árbol} es una estructura de datos jerárquica compuesta por nodos conectados por
+aristas, sin ciclos. Formalmente, es un grafo dirigido acíclico con un nodo distinguido
+llamado \textbf{raíz} (\textit{root}), desde el cual existe exactamente un camino hacia
+cualquier otro nodo. La estructura es inherentemente recursiva: cada nodo es la raíz de
+su propio subárbol.
+\end{definicion}
+
+El vocabulario básico del que dependen todas las definiciones posteriores es el siguiente:
+
+\begin{itemize}
+    \item \textbf{Raíz} (\textit{root}): único nodo sin padre; punto de entrada a toda
+          la estructura.
+    \item \textbf{Nodo interno} (\textit{internal node}): nodo con al menos un hijo.
+    \item \textbf{Hoja} (\textit{leaf}) o nodo externo: nodo sin hijos.
+    \item \textbf{Padre} (\textit{parent}) e \textbf{hijo} (\textit{child}): si existe
+          una arista de $u$ hacia $v$, entonces $u$ es padre de $v$ y $v$ es hijo de $u$.
+    \item \textbf{Hermanos} (\textit{siblings}): nodos que comparten el mismo padre.
+    \item \textbf{Ancestro} y \textbf{descendiente}: $u$ es ancestro de $v$ si existe un
+          camino de $u$ a $v$; $v$ es descendiente de $u$.
+\end{itemize}
+
+Las dos medidas de distancia más importantes —y las que generan más confusión— son la
+\textbf{profundidad} y la \textbf{altura}:
+
+\begin{definicion}{Profundidad de un nodo}
+La \textbf{profundidad} (\textit{depth}) de un nodo $v$ es la longitud del camino único
+desde la raíz hasta $v$, medida en número de aristas. Se define de forma inductiva:
+\[
+    d(\mathrm{raíz}) = 0, \qquad d(v) = d(\mathrm{parent}(v)) + 1.
+\]
+La profundidad \emph{sube} desde el nodo hacia la raíz.
+\end{definicion}
+
+\begin{definicion}{Altura de un nodo}
+La \textbf{altura} (\textit{height}) de un nodo $v$ es la longitud del camino más largo
+desde $v$ hasta una hoja en su propio subárbol. Se define recursivamente:
+\[
+    h(v) =
+    \begin{cases}
+        0 & \text{si } v \text{ es hoja,} \\[4pt]
+        1 + \displaystyle\max_{u \,\in\, \mathrm{hijos}(v)} h(u) & \text{si } v
+        \text{ es nodo interno.}
+    \end{cases}
+\]
+La \textbf{altura del árbol} es $h(\mathrm{raíz})$, que coincide con la profundidad
+máxima de cualquier hoja. La altura \emph{baja} desde el nodo hacia su hoja más lejana.
+\end{definicion}
+
+\begin{observacion}{Dualidad entre profundidad y altura}
+Profundidad y altura miden direcciones opuestas a lo largo del mismo eje vertical del árbol.
+Para la raíz: $d = 0$ y $h = $ altura total del árbol. Para cualquier hoja: $d = $ su nivel
+y $h = 0$. El error más común es calcular la altura de un nodo $v$ como su distancia a la
+hoja más profunda del árbol \emph{completo}: esto solo es correcto para la raíz, porque la
+raíz contiene todo el árbol como su subárbol. Para cualquier otro nodo, la referencia es
+la hoja más lejana \emph{dentro de su propio subárbol}.
+\end{observacion}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{forest}
+        for tree={
+            circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+            minimum size=0.95cm, inner sep=1pt,
+            l sep=14mm, s sep=7mm,
+            font=\sffamily\small
+        }
+        [\textbf{A}, fill=CtpBlue!35,
+            label=right:{\scriptsize $d{=}0,\;h{=}3$}
+            [B, label=left:{\scriptsize $d{=}1,\;h{=}2$}
+                [D, label=left:{\scriptsize $d{=}2,\;h{=}1$}
+                    [H, label=left:{\scriptsize $d{=}3,\;h{=}0$}]
+                ]
+                [E, label=below:{\scriptsize $d{=}2,\;h{=}0$}]
+            ]
+            [C, label=right:{\scriptsize $d{=}1,\;h{=}1$}
+                [F, label=below:{\scriptsize $d{=}2,\;h{=}0$}]
+                [G, label=right:{\scriptsize $d{=}2,\;h{=}0$}]
+            ]
+        ]
+    \end{forest}
+    \caption{Árbol con anotaciones de profundidad $d$ y altura $h$ en cada nodo. La raíz
+             \textbf{A} tiene $d=0$ y $h=3$; todas las hojas tienen $h=0$. Nótese que $h(D)=1$
+             aunque la hoja más profunda del árbol completo (H) está a distancia $1$ de $D$:
+             en este caso coincide porque H es hoja del subárbol de $D$.}
+    \label{fig:tree-anotado}
+\end{figure}
+
+% ------------------------------------------------------------
+\section{Subárboles}
+\label{sec:subtrees}
+% ------------------------------------------------------------
+
+\begin{definicion}{Subárbol}
+Dado un nodo $v$ en un árbol $T$, el \textbf{subárbol} de $v$ —denotado $T_v$— es el
+subgrafo formado por $v$ mismo, todos sus descendientes, y las aristas que los conectan.
+El nodo $v$ actúa como raíz de $T_v$. Formalmente, $T_v$ es el subgrafo inducido por
+el conjunto $\{u \in T : v \text{ es ancestro de } u\} \cup \{v\}$.
+\end{definicion}
+
+El subárbol es el concepto que hace al árbol una estructura \emph{recursiva}: un árbol
+es simplemente la raíz más los subárboles de sus hijos. Esta recursividad es la razón por
+la que casi todos los algoritmos sobre árboles —recorridos, búsqueda, inserción,
+eliminación— se expresan de forma recursiva de manera natural, y por la que las
+demostraciones sobre árboles suelen proceder por inducción sobre la altura.
+
+\begin{ejemplo}{Identificación de subárboles}
+En el árbol de la \cref{fig:tree-anotado}, el subárbol del nodo $B$ contiene los nodos
+$\{B, D, E, H\}$ con las aristas $B\text{--}D$, $B\text{--}E$ y $D\text{--}H$; su altura
+es $2$. El nodo $C$ es raíz de un subárbol distinto $\{C, F, G\}$ con altura $1$. Una
+hoja como $H$ constituye un subárbol de tamaño $1$ y altura $0$.
+\end{ejemplo}
+
+% ------------------------------------------------------------
+\section{Árbol Binario}
+\label{sec:binary-tree}
+% ------------------------------------------------------------
+
+\begin{definicion}{Árbol binario}
+Un \textbf{árbol binario} (\textit{binary tree}) es un árbol en el que cada nodo tiene a
+lo sumo dos hijos, denominados \textbf{hijo izquierdo} (\textit{left child}) e \textbf{hijo
+derecho} (\textit{right child}). La distinción entre izquierdo y derecho es estructural:
+un nodo con solo hijo izquierdo es una configuración distinta de un nodo con solo hijo
+derecho, aunque ambos tengan un único descendiente.
+\end{definicion}
+
+En la implementación, cada nodo almacena dos referencias, \texttt{left} y \texttt{right},
+cualquiera de las cuales puede ser \texttt{null}. Esta representación es la base de los
+BST, los \textit{heaps} y los árboles de expresión aritmética.
+
+% ------------------------------------------------------------
+\section{Tipos de Árbol Binario}
+\label{sec:tree-types}
+% ------------------------------------------------------------
+
+Las tres propiedades que se definen a continuación son \textbf{independientes entre sí}:
+un árbol puede satisfacer cualquier combinación de ellas. El examen habitualmente presenta
+árboles que satisfacen algunas y violan otras, por lo que es fundamental verificar cada
+propiedad de forma independiente.
+
+% --- Completo ---
+\subsection{Árbol Completo (\textit{Complete Binary Tree})}
+\label{subsec:complete}
+
+\begin{definicion}{Árbol binario completo}
+Un árbol binario es \textbf{completo} (\textit{complete}) si todos sus niveles están
+completamente llenos, excepto posiblemente el último, y el último nivel se llena de
+\textbf{izquierda a derecha} sin dejar huecos entre nodos.
+\end{definicion}
+
+Esta propiedad garantiza que el árbol puede mapearse biyectivamente a un arreglo de
+tamaño $n$ usando la relación $\mathrm{parent}(i) = \lfloor(i-1)/2\rfloor$, sin
+desperdiciar posiciones. Es la base estructural de los \textit{heaps} y de la
+implementación eficiente de colas de prioridad.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.47\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpGreen, fill=CtpGreen!20, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=11mm, s sep=6mm,
+                       font=\sffamily\small}
+            [1 [2 [4][5]] [3 [6][,phantom,draw=none,fill=none]]]
+        \end{forest}
+        \par\smallskip
+        {\small\color{CtpGreen}\textbf{Válido} — último nivel lleno de izq.\ a der.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.47\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpRed, fill=CtpRed!15, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=11mm, s sep=6mm,
+                       font=\sffamily\small}
+            [1 [2 [,phantom,draw=none,fill=none][5]] [3 [6][7]]]
+        \end{forest}
+        \par\smallskip
+        {\small\color{CtpRed}\textbf{No válido} — hueco en nodo 2 antes de que nodo 3
+        tenga hijos.}
+    \end{minipage}
+    \caption{Árbol completo: válido (izquierda) vs.\ no válido (derecha). La ausencia del
+             hijo izquierdo de 2 mientras el nodo 3 ya tiene dos hijos rompe la condición
+             de llenado izquierda-derecha.}
+    \label{fig:complete-tree}
+\end{figure}
+
+% --- Lleno ---
+\subsection{Árbol Lleno (\textit{Full Binary Tree})}
+\label{subsec:full}
+
+\begin{definicion}{Árbol binario lleno}
+Un árbol binario es \textbf{lleno} (\textit{full}) si cada nodo tiene exactamente $0$ o
+$2$ hijos. Ningún nodo puede tener exactamente $1$ hijo.
+\end{definicion}
+
+Esta propiedad es característica de los \textbf{árboles de expresión aritmética}, donde los
+operadores internos tienen siempre dos operandos y los operandos son hojas. Un resultado
+combinatorio útil: en un árbol lleno con $n$ nodos internos, el número total de hojas es
+exactamente $n + 1$.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.47\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpGreen, fill=CtpGreen!20, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=11mm, s sep=6mm,
+                       font=\sffamily\small}
+            [1 [2 [4][5]] [3]]
+        \end{forest}
+        \par\smallskip
+        {\small\color{CtpGreen}\textbf{Válido} — todo nodo tiene 0 ó 2 hijos.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.47\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpRed, fill=CtpRed!15, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=11mm, s sep=6mm,
+                       font=\sffamily\small}
+            [1 [2 [4][,phantom,draw=none,fill=none]] [3]]
+        \end{forest}
+        \par\smallskip
+        {\small\color{CtpRed}\textbf{No válido} — nodo 2 tiene exactamente 1 hijo.}
+    \end{minipage}
+    \caption{Árbol lleno: válido (izquierda) vs.\ no válido (derecha). El nodo 2 con un
+             solo hijo derecho viola la condición de 0 ó 2 hijos.}
+    \label{fig:full-tree}
+\end{figure}
+
+% --- Balanceado ---
+\subsection{Árbol Balanceado (\textit{Balanced Binary Tree})}
+\label{subsec:balanced}
+
+\begin{definicion}{Árbol binario balanceado}
+Un árbol binario es \textbf{balanceado} (o equilibrado) si todas sus rutas desde la raíz
+hasta una hoja tienen la misma longitud o difieren en a lo sumo $1$:
+\[
+    \max_{\text{hoja } \ell}\; d(\ell)
+    \;-\;
+    \min_{\text{hoja } \ell'}\; d(\ell')
+    \;\leq\; 1,
+\]
+donde $d(\cdot)$ denota la profundidad del nodo.
+\end{definicion}
+
+La importancia algorítmica del balance es directa: un árbol binario balanceado con $n$
+nodos tiene altura $h = O(\log_2 n)$, lo que garantiza $O(\log n)$ en búsqueda, inserción
+y eliminación. Si el árbol se desbalancea —degenerando en una lista enlazada— la altura
+crece a $O(n)$ y las operaciones pierden toda ventaja sobre una búsqueda lineal.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.47\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpGreen, fill=CtpGreen!20, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=11mm, s sep=6mm,
+                       font=\sffamily\small}
+            [1 [2 [4][5]] [3 [6][7]]]
+        \end{forest}
+        \par\smallskip
+        {\small\color{CtpGreen}\textbf{Válido} — todas las rutas tienen longitud $2$.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.47\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpRed, fill=CtpRed!15, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=11mm, s sep=5mm,
+                       font=\sffamily\small}
+            [1 [2 [4 [8][,phantom,draw=none,fill=none]]
+                   [,phantom,draw=none,fill=none]]
+               [3]]
+        \end{forest}
+        \par\smallskip
+        {\small\color{CtpRed}\textbf{No válido} — rutas de longitud $3$ y $1$;
+        diferencia $= 2 > 1$.}
+    \end{minipage}
+    \caption{Árbol balanceado: válido (izquierda) vs.\ no válido (derecha). La diferencia
+             entre la ruta más larga ($1\to2\to4\to8$, longitud $3$) y la más corta
+             ($1\to3$, longitud $1$) supera el umbral de $1$.}
+    \label{fig:balanced-tree}
+\end{figure}
+
+\begin{observacion}{Independencia de las tres propiedades}
+Completo, lleno y balanceado son condiciones ortogonales. Un árbol puede ser completo sin
+ser lleno (si el último nivel está parcialmente lleno, algún nodo tendrá $1$ hijo),
+lleno sin ser balanceado (todos los nodos tienen $0$ ó $2$ hijos pero las ramas izquierda
+y derecha pueden tener longitudes muy dispares), y balanceado sin ser completo (las rutas
+pueden diferir en $1$ sin que el llenado sea izquierda-derecha). Para el examen, verificar
+cada propiedad de forma independiente y apoyar la respuesta con la evidencia concreta
+del nodo que la viola.
+\end{observacion}
+
+% ------------------------------------------------------------
+\section{Recorridos de un Árbol Binario}
+\label{sec:traversals}
+% ------------------------------------------------------------
+
+Los tres recorridos clásicos —\textit{pre-order}, \textit{in-order} y \textit{post-order}—
+son instancias de la misma plantilla DFS (\textit{depth-first search}) recursiva. La única
+diferencia entre ellos es el \textbf{momento en que se procesa el nodo actual} relativo al
+recorrido de sus subárboles:
+
+\[
+\text{Pre-order:}\;(\mathrm{Raíz},\, L,\, R)
+\qquad
+\text{In-order:}\;(L,\, \mathrm{Raíz},\, R)
+\qquad
+\text{Post-order:}\;(L,\, R,\, \mathrm{Raíz})
+\]
+
+El prefijo lo indica literalmente: \textit{pre} = raíz primero, \textit{in} = raíz en medio,
+\textit{post} = raíz al final. La rama izquierda siempre se visita antes que la derecha;
+este orden es invariante en los tres recorridos.
+
+\begin{algorithm}[H]
+\caption{Pre-order — (\textit{Raíz, Izquierda, Derecha})}
+\label{alg:preorder}
+\KwIn{Nodo $v$}
+\If{$v = \texttt{null}$}{\Return}
+\textbf{procesar}$(v)$\;
+\texttt{preOrder}$(v.\mathit{left})$\;
+\texttt{preOrder}$(v.\mathit{right})$\;
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{In-order — (\textit{Izquierda, Raíz, Derecha})}
+\label{alg:inorder}
+\KwIn{Nodo $v$}
+\If{$v = \texttt{null}$}{\Return}
+\texttt{inOrder}$(v.\mathit{left})$\;
+\textbf{procesar}$(v)$\;
+\texttt{inOrder}$(v.\mathit{right})$\;
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Post-order — (\textit{Izquierda, Derecha, Raíz})}
+\label{alg:postorder}
+\KwIn{Nodo $v$}
+\If{$v = \texttt{null}$}{\Return}
+\texttt{postOrder}$(v.\mathit{left})$\;
+\texttt{postOrder}$(v.\mathit{right})$\;
+\textbf{procesar}$(v)$\;
+\end{algorithm}
+
+Los tres algoritmos tienen complejidad $\Theta(n)$ en tiempo —cada nodo se visita exactamente
+una vez— y $O(h)$ en espacio auxiliar por la pila de recursión, donde $h$ es la altura del
+árbol. En el peor caso (árbol degenerado) esto es $O(n)$; en un árbol balanceado, $O(\log n)$.
+
+\begin{acadtable}[htbp]{tab:recorridos}{Comparación de los tres recorridos clásicos}
+    \begin{tabularx}{\textwidth}{l X X}
+        \headerrow
+        \textbf{Recorrido} & \textbf{Orden de visita} & \textbf{Aplicación típica} \\
+        \hline
+        Pre-order   & Raíz $\to$ Izquierda $\to$ Derecha & Serialización del árbol;
+                      reconstrucción de la misma estructura por inserción secuencial \\
+        In-order    & Izquierda $\to$ Raíz $\to$ Derecha & Secuencia ordenada en BST;
+                      verificación de la propiedad de orden \\
+        Post-order  & Izquierda $\to$ Derecha $\to$ Raíz & Liberación de memoria
+                      (se procesan hijos antes que el padre); evaluación de
+                      árboles de expresión aritmética \\
+    \end{tabularx}
+\end{acadtable}
+
+\begin{ejemplo}{Recorridos sobre un árbol concreto}
+Dado el árbol:
+
+\begin{center}
+\begin{forest}
+    for tree={
+        circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+        minimum size=0.9cm, inner sep=2pt, l sep=13mm, s sep=9mm,
+        font=\sffamily\small
+    }
+    [A [B [D][E]] [C [,phantom,draw=none,fill=none][F]]]
+\end{forest}
+\end{center}
+
+\noindent los tres recorridos producen las siguientes secuencias:
+
+\begin{itemize}
+    \item \textbf{Pre-order} (Raíz, $L$, $R$): $A,\, B,\, D,\, E,\, C,\, F$
+    \item \textbf{In-order} ($L$, Raíz, $R$): $D,\, B,\, E,\, A,\, C,\, F$
+    \item \textbf{Post-order} ($L$, $R$, Raíz): $D,\, E,\, B,\, F,\, C,\, A$
+\end{itemize}
+
+Nótese el nodo $C$, que tiene únicamente hijo derecho ($F$): en el in-order, al no existir
+subárbol izquierdo, se procesa $C$ inmediatamente y luego $F$. Este caso —nodo con un solo
+hijo— es el más propenso a errores en examen.
+\end{ejemplo}
+
+\begin{observacion}{In-order y BST}
+El recorrido in-order de un \textit{Binary Search Tree} (BST) produce las claves en orden
+estrictamente ascendente. Esta propiedad no es una coincidencia: es consecuencia directa
+de la propiedad de orden del BST, que se estudia en el capítulo siguiente. Verificar que
+el in-order produce una secuencia ascendente es la forma más sencilla —y suficiente— de
+validar que un árbol es un BST bien construido.
+\end{observacion}
+
+% ------------------------------------------------------------
+\section{Ejercicios}
+\label{sec:trees-ejercicios}
+% ------------------------------------------------------------
+
+\begin{ejercicio}
+Para el siguiente árbol binario, determine: \textbf{(1)} la altura del árbol, \textbf{(2)}
+si es completo, \textbf{(3)} si está lleno, \textbf{(4)} si está balanceado, \textbf{(5)}
+la altura y la profundidad de los nodos $1$, $3$, $5$ y $10$, y \textbf{(6)} los recorridos
+pre-order, in-order y post-order completos.
+
+\begin{center}
+\begin{forest}
+    for tree={
+        circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+        minimum size=0.9cm, inner sep=2pt, l sep=13mm, s sep=7mm,
+        font=\sffamily\small
+    }
+    [1
+        [2
+            [4 [7][8]]
+            [5 [9][10]]
+        ]
+        [3
+            [6 [11][12]]
+            [,phantom,draw=none,fill=none]
+        ]
+    ]
+\end{forest}
+\end{center}
+\end{ejercicio}
+
+\begin{ejercicio}
+Dado el siguiente árbol:
+
+\begin{center}
+\begin{forest}
+    for tree={
+        circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+        minimum size=0.9cm, inner sep=2pt, l sep=13mm, s sep=7mm,
+        font=\sffamily\small
+    }
+    [1
+        [2
+            [4 [,phantom,draw=none,fill=none][8]]
+            [5]
+        ]
+        [3
+            [6]
+            [7 [10][11]]
+        ]
+    ]
+\end{forest}
+\end{center}
+
+\noindent determine las mismas propiedades del ejercicio anterior e identifique con
+precisión el nodo (o los nodos) que provocan la violación de cada propiedad que no se
+satisfaga.
+\end{ejercicio}
+
+\begin{ejerciciocomp}
+Implemente en Java los tres recorridos (pre-order, in-order, post-order) de forma recursiva
+para un árbol binario genérico. La clase \texttt{Node} debe contener un campo
+\texttt{int value} y referencias \texttt{Node left} y \texttt{Node right}. Construya el
+árbol del primer ejercicio e imprima los tres recorridos. Verifique sus resultados
+comparándolos con los calculados a mano.
+\end{ejerciciocomp}
+
+
+\printbibliography[heading=subbibliography]

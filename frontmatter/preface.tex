@@ -1,0 +1,94 @@
+% =============================================================================
+% PREFACIO
+% =============================================================================
+
+\chapter*{Prefacio}
+\addcontentsline{toc}{chapter}{Prefacio}
+
+% --- Cita de apertura ---
+\begin{flushright}
+\itshape
+``Bad programmers worry about the code. Good programmers worry about data structures and their relationships.''\\[4pt]
+\upshape --- Linus Torvalds
+\end{flushright}
+\bigskip
+
+% --- Texto introductorio ---
+Este compendio de notas surge del estudio sistemático de las estructuras de datos
+fundamentales del curso de \textit{Data Structures} (CISE-Ph.D.), con el objetivo de
+documentar no solo los algoritmos y las interfaces de programación, sino la lógica
+estructural que subyace a cada decisión de diseño. Para un investigador con formación
+en física y métodos computacionales, las estructuras de datos no son colecciones
+arbitrarias de convenciones: son soluciones a problemas de organización de información
+bajo restricciones de tiempo y espacio, análogas en espíritu a las estructuras variacionales
+o los esquemas numéricos que minimizan error bajo restricciones de recursos.
+
+El hilo conductor de este texto es la pregunta: \textit{¿cuándo elegir qué estructura, y
+a qué costo?} Cada capítulo responde esa pregunta para una familia de estructuras,
+articulando la complejidad asintótica, los casos de uso y los compromisos de diseño de
+forma precisa.
+
+% --- Subsección: Audiencia objetivo ---
+\subsection*{El investigador al que está dirigido este compendio}
+
+Este documento está diseñado para estudiantes que se introducen en CISE y científicos
+computacionales con madurez matemática propia de la física teórica y experimental. Se
+asume familiaridad con análisis asintótico básico y programación orientada a objetos en
+Java, pero no experiencia previa con las estructuras aquí cubiertas. El nivel de formalidad
+es deliberadamente alto: se incluyen definiciones recursivas, notación de conjuntos y
+argumentos de complejidad, no como adorno, sino porque son la única forma precisa de
+caracterizar el comportamiento de estas estructuras.
+
+% --- Subsección: Alcance y estructura ---
+\subsection*{Alcance del compendio y estructura de las notas}
+
+Este compendio documenta una fracción del temario total del curso, que abarca desde las
+estructuras lineales elementales hasta las estructuras jerárquicas y los mecanismos de
+búsqueda eficiente. El temario completo incluye, entre otras estructuras:
+
+\begin{itemize}
+    \item \textbf{Estructuras lineales:} arrays, matrices, listas enlazadas
+          (\textit{linked lists}), pilas (\textit{stacks}), colas (\textit{queues}),
+          \textit{deques} y conjuntos (\textit{sets}).
+    \item \textbf{Estructuras asociativas:} tablas hash (\textit{hash tables}),
+          mapas (\textit{hash maps}) y su implementación en Java.
+    \item \textbf{Estructuras jerárquicas:} árboles binarios (\textit{binary trees})
+          y árboles binarios de búsqueda (\textit{binary search trees}, BST).
+\end{itemize}
+
+Los capítulos aquí incluidos cubren los bloques asociativos y jerárquicos. A medida que
+el curso avanza, el compendio se irá extendiendo para documentar el resto del temario
+de forma coherente y acumulativa.
+
+% --- Subsección: Anglicismos técnicos ---
+\subsection*{Sobre los anglicismos técnicos}
+
+En el ámbito de las estructuras de datos y los algoritmos, términos como \textit{hashing},
+\textit{heap}, \textit{stack}, \textit{BST}, \textit{pre-order} o \textit{in-order} poseen
+definiciones estandarizadas en la literatura internacional que no tienen equivalentes en
+español suficientemente precisos o de uso extendido. A lo largo de este texto se conservan
+en inglés o se usan como préstamos integrados, señalados en cursiva en su primera aparición.
+
+% --- Subsección: Convenciones notacionales ---
+\subsection*{Convenciones notacionales}
+
+\begin{itemize}
+    \item \textbf{Complejidad asintótica:} se emplea notación Big-O ($O(\cdot)$),
+          Big-Theta ($\Theta(\cdot)$) y Big-Omega ($\Omega(\cdot)$) para caracterizar
+          complejidad temporal y espacial en el peor caso, caso promedio y mejor caso,
+          respectivamente.
+    \item \textbf{Árboles:} $h(v)$ denota la altura del nodo $v$; $d(v)$ su profundidad.
+          $T_v$ denota el subárbol con raíz en $v$.
+    \item \textbf{Conjuntos:} $k(v)$ denota la clave almacenada en el nodo $v$.
+          Los subárboles izquierdo y derecho se denotan $v.\mathit{left}$ y
+          $v.\mathit{right}$ para mantener coherencia con la notación de implementación.
+    \item \textbf{Pseudocódigo:} los algoritmos se presentan en pseudocódigo estructurado
+          independiente del lenguaje, con implementaciones de referencia en Java donde
+          resulta ilustrativo.
+\end{itemize}
+
+\vspace{1.2cm}
+\begin{flushright}
+\textit{Jesús Antonio Chala Casanova}\\[2pt]
+CISE, \the\year
+\end{flushright}

@@ -1,0 +1,531 @@
+\chapter{HashTables, HashMaps y Otros Mapas en Java}
+\label{ch:hash-tables-maps}
+
+Este capítulo explora las estructuras de datos basadas en hashing disponibles en Java: la clase legacy \texttt{Hashtable} y la moderna \texttt{HashMap}. Ambas permiten almacenar pares clave-valor con eficiencia \(O(1)\) promedio, pero difieren en sincronización, permisos de valores nulos y mecanismos internos. También se introducen otras implementaciones de la interfaz \texttt{Map} como \texttt{LinkedHashMap}, \texttt{TreeMap} y \texttt{ConcurrentHashMap}, cada una con sus propias ventajas. Al final, se presenta una transición hacia los árboles, una alternativa ordenada cuando el rendimiento predecible y el orden son importantes.
+
+\section{Introducción a los Mapas Basados en Hashing}
+\label{sec:intro-maps}
+
+\begin{definicion}{Mapa (Map)}
+Un \textbf{mapa} es una estructura de datos que almacena pares \texttt{key-value} (clave-valor), donde cada clave es única y se asocia a un valor. La interfaz \texttt{Map<K,V>} del paquete \texttt{java.util} define las operaciones básicas para este tipo de estructuras.
+\end{definicion}
+
+Los mapas basados en hashing utilizan una función hash para convertir una clave en un índice dentro de un arreglo interno, permitiendo acceso en tiempo constante promedio \(O(1)\) para operaciones de inserción, búsqueda y eliminación. La función hash debe distribuir las claves de manera uniforme para minimizar colisiones.
+
+\begin{observacion}{Analogía matemática del hashing}
+Desde una perspectiva matemática, un mapa basado en hashing es una aproximación computacional de una función \(f: D \to C\), donde el dominio \(D\) (las claves) puede contener elementos no numéricos. El hashing permite transformar cualquier objeto en un índice numérico dentro de un arreglo finito, lo que hace posible implementar la idea de función en un entorno discreto y con recursos limitados.
+\end{observacion}
+
+\section{La Clase Hashtable (Legacy)}
+\label{sec:hashtable}
+
+\begin{definicion}{Hashtable}
+La clase \texttt{Hashtable} es una implementación heredada de la interfaz \texttt{Map} que existe desde Java 1.0. Es una estructura sincronizada (thread-safe) que no permite claves ni valores nulos. Su uso está desaconsejado en código nuevo, pero es importante conocerla por su presencia en sistemas legados.
+\end{definicion}
+
+\subsection{Características Principales}
+\begin{itemize}
+    \item Implementa la interfaz \texttt{Map<K,V>}.
+    \item Está sincronizada (segura para múltiples subprocesos).
+    \item No permite claves \texttt{null} ni valores \texttt{null} (lanza \texttt{NullPointerException}).
+    \item Utiliza hashing para almacenar elementos de manera eficiente.
+    \item Es más lenta que \texttt{HashMap} debido a la sincronización.
+    \item Su capacidad inicial por defecto es 11, y su factor de carga por defecto es 0.75.
+\end{itemize}
+
+\subsection{Métodos Importantes}
+\begin{acadtable}[htbp]{tab:metodos-hashtable}{Métodos principales de la clase \texttt{Hashtable}}
+    \begin{tabularx}{\textwidth}{l X}
+        \headerrow
+        \textbf{Método} & \textbf{Descripción} \\
+        \hline
+        \texttt{put(K key, V value)} & Agrega un par \texttt{key-value} \\
+        \texttt{get(Object key)} & Recupera el valor asociado a una clave \\
+        \texttt{remove(Object key)} & Quita el par \texttt{key-value} \\
+        \texttt{containsKey(Object key)} & Comprueba si la clave existe \\
+        \texttt{containsValue(Object value)} & Comprueba si el valor existe \\
+        \texttt{isEmpty()} & Comprueba si el \texttt{Hashtable} está vacío \\
+        \texttt{size()} & Devuelve el número de pares \texttt{key-value} \\
+        \texttt{keySet()} & Devuelve un conjunto de claves (\texttt{Set<K>}) \\
+        \texttt{values()} & Devuelve una colección de valores (\texttt{Collection<V>}) \\
+    \end{tabularx}
+\end{acadtable}
+
+\subsection{Ejemplo con Hashtable}
+\begin{lstlisting}[language=Java, style=java, caption={Ejemplo de uso de Hashtable}]
+import java.util.Hashtable;
+
+public class Main {
+    public static void main(String[] args) {
+        Hashtable<Integer, String> tabla = new Hashtable<>();
+        tabla.put(1, "Manzana");
+        tabla.put(2, "Banana");
+        tabla.put(3, "Cereza");
+
+        System.out.println(tabla.get(2)); // Banana
+        System.out.println(tabla.containsKey(3)); // true
+        System.out.println(tabla.containsValue("Mango")); // false
+    }
+}
+\end{lstlisting}
+
+\section{La Clase HashMap (Moderna)}
+\label{sec:hashmap}
+
+\begin{definicion}{HashMap}
+La clase \texttt{HashMap} es una implementación de la interfaz \texttt{Map<K,V>} que utiliza una tabla hash para almacenar pares \texttt{key-value}. Fue introducida en Java 1.2 y es la opción preferida para la mayoría de las aplicaciones modernas debido a su rendimiento y flexibilidad.
+\end{definicion}
+
+\subsection{Características Principales}
+\begin{itemize}
+    \item Utiliza una tabla hash interna para almacenar datos.
+    \item Rendimiento rápido: complejidad temporal promedio \(O(1)\) para \texttt{get} y \texttt{put}.
+    \item Permite \textbf{una clave nula} y \textbf{múltiples valores nulos}.
+    \item \textbf{No es seguro para subprocesos} (thread-safe). Para entornos multihilo, use \texttt{ConcurrentHashMap}.
+    \item No garantiza un orden de iteración. Si necesita orden, use \texttt{LinkedHashMap} o \texttt{TreeMap}.
+    \item Capacidad inicial por defecto: 16.
+    \item Factor de carga por defecto: 0.75.
+\end{itemize}
+
+\subsection{Declaración e Instanciación de HashMap}
+\label{subsec:declaracion}
+
+La declaración más simple es:
+
+\begin{lstlisting}[language=Java, style=java, caption={Declaración básica de HashMap}]
+HashMap<K, V> map = new HashMap<>();
+\end{lstlisting}
+
+Donde \texttt{K} y \texttt{V} deben ser tipos de objeto (clases). Para tipos primitivos se usan sus clases wrapper: \texttt{Integer}, \texttt{Double}, \texttt{Boolean}, etc.
+
+\subsubsection{Capacidad inicial y factor de carga}
+Se puede especificar la capacidad inicial y el factor de carga en el constructor:
+
+\begin{lstlisting}[language=Java, style=java, caption={HashMap con parámetros}]
+HashMap<String, Integer> map = new HashMap<>(16, 0.75f);  // capacidad 16, factor 0.75 (por defecto)
+HashMap<String, Integer> map2 = new HashMap<>(32);        // capacidad 32, factor 0.75
+HashMap<String, Integer> map3 = new HashMap<>(100, 0.8f); // capacidad 100, factor 0.8
+\end{lstlisting}
+
+\begin{observacion}{Elección de capacidad inicial}
+Si sabes de antemano cuántos elementos vas a insertar, es recomendable inicializar el \texttt{HashMap} con una capacidad que evite múltiples rehash. Por ejemplo, si esperas 10.000 elementos, usa \texttt{new HashMap<>(10000)} para que el rehashing sea mínimo.
+\end{observacion}
+
+\subsubsection{Inicialización con valores no nulos}
+Existen varias formas de inicializar un \texttt{HashMap} con valores:
+
+\begin{enumerate}
+    \item \textbf{Usando \texttt{put} uno a uno}:
+    \begin{lstlisting}[language=Java, style=java]
+    HashMap<String, Integer> map = new HashMap<>();
+    map.put("A", 1);
+    map.put("B", 2);
+    map.put("C", 3);
+    \end{lstlisting}
+
+    \item \textbf{Usando \texttt{Map.of} (Java 9+)}:
+    \begin{lstlisting}[language=Java, style=java]
+    HashMap<String, Integer> map = new HashMap<>(Map.of("A", 1, "B", 2, "C", 3));
+    \end{lstlisting}
+
+    \item \textbf{Usando \texttt{Map.ofEntries}}:
+    \begin{lstlisting}[language=Java, style=java]
+    HashMap<String, Integer> map = new HashMap<>(Map.ofEntries(
+        Map.entry("A", 1),
+        Map.entry("B", 2),
+        Map.entry("C", 3)
+    ));
+    \end{lstlisting}
+\end{enumerate}
+
+\subsection{Funcionamiento Interno}
+\label{subsec:funcionamiento-interno}
+
+\begin{definicion}{Hashing y Buckets}
+Java utiliza la función \texttt{hashCode()} de cada clave para asignar un código hash. Este código se transforma en un índice dentro de una matriz interna (los \textbf{buckets}). Cada bucket contiene una lista enlazada o un árbol rojo-negro para manejar colisiones.
+\end{definicion}
+
+\subsubsection{Manejo de Colisiones}
+\begin{itemize}
+    \item \textbf{Encadenamiento (Chaining)}: Cuando dos claves tienen el mismo código hash, se almacenan en una lista enlazada dentro del bucket.
+    \item \textbf{Optimización con Árboles}: A partir de Java 8, si una lista supera un umbral (8 elementos), se convierte en un \textbf{Red-Black Tree}. Esto reduce la complejidad de búsqueda de \(O(n)\) a \(O(\log n)\) en el peor caso.
+\end{itemize}
+
+\begin{observacion}{Dato curioso sobre la conversión a árbol}
+El umbral de 8 elementos para convertir una lista en árbol no es arbitrario. Fue elegido tras estudios empíricos que muestran que en la práctica, las listas rara vez superan esa longitud en condiciones normales. La conversión a árbol protege contra ataques de colisiones maliciosas (DoS), donde un atacante podría insertar muchas claves que colisionan deliberadamente para degradar el rendimiento a \(O(n)\).
+\end{observacion}
+
+\subsubsection{Factor de Carga y Rehashing}
+\begin{definicion}{Factor de carga}
+El \textbf{factor de carga} (\(\alpha\)) se define como \(\alpha = n / m\), donde \(n\) es el número de elementos insertados y \(m\) es la capacidad actual de la tabla. Controla cuándo la tabla debe redimensionarse.
+\end{definicion}
+
+\begin{itemize}
+    \item \textbf{Factor de carga predeterminado}: \(0.75\) (75\% de la capacidad actual).
+    \item Cuando el número de elementos supera el producto \texttt{capacidad \(\times\) factor de carga}, se produce un \textbf{rehashing}: el tamaño de la tabla se duplica y todas las claves se reasignan a nuevos índices.
+    \item \textbf{Capacidad inicial por defecto}: \(16\).
+\end{itemize}
+
+\begin{observacion}{Conveniencia del valor 0.75}
+El valor 0.75 es un equilibrio empírico entre memoria y rendimiento. Con encadenamiento, un factor de carga de 0.75 implica que la longitud media de las listas es 0.75, lo que mantiene las operaciones muy cerca de \(O(1)\) sin desperdiciar memoria. Valores bajos (0.5–0.7) reducen colisiones pero desperdician memoria; valores altos (0.8–0.9) ahorran memoria pero aumentan el riesgo de colisiones.
+\end{observacion}
+
+\subsection{Métodos Importantes de HashMap}
+\label{subsec:metodos-hashmap}
+
+La siguiente tabla resume los métodos más utilizados de la clase \texttt{HashMap}, incluyendo métodos modernos introducidos en Java 8 y posteriores.
+
+\begin{acadtable}[htbp]{tab:metodos-hashmap}{Métodos principales de \texttt{HashMap}}
+    \begin{tabularx}{\textwidth}{l X}
+        \headerrow
+        \textbf{Método} & \textbf{Descripción} \\
+        \hline
+        \texttt{put(K key, V value)} & Inserta o actualiza un par clave-valor \\
+        \texttt{get(Object key)} & Devuelve el valor asociado a la clave, o \texttt{null} si no existe \\
+        \texttt{remove(Object key)} & Elimina el elemento con la clave especificada \\
+        \texttt{containsKey(Object key)} & Comprueba si la clave existe \\
+        \texttt{containsValue(Object value)} & Comprueba si el valor existe \\
+        \texttt{size()} & Devuelve el número de pares clave-valor \\
+        \texttt{isEmpty()} & Comprueba si el mapa está vacío \\
+        \texttt{clear()} & Elimina todos los elementos \\
+        \texttt{keySet()} & Devuelve un \texttt{Set} con todas las claves \\
+        \texttt{values()} & Devuelve una \texttt{Collection} con todos los valores \\
+        \texttt{entrySet()} & Devuelve un \texttt{Set} de pares \texttt{Map.Entry} \\
+        \texttt{getOrDefault(K key, V defaultValue)} & Devuelve el valor o un valor por defecto \\
+        \texttt{putIfAbsent(K key, V value)} & Añade solo si la clave no está presente \\
+        \texttt{replace(K key, V value)} & Reemplaza el valor si la clave existe \\
+        \texttt{replace(K key, V oldValue, V newValue)} & Reemplaza solo si el valor actual coincide con el esperado \\
+        \texttt{computeIfAbsent(K key, Function)} & Añade si la clave falta \\
+        \texttt{computeIfPresent(K key, BiFunction)} & Actualiza si la clave existe \\
+        \texttt{merge(K key, V value, BiFunction)} & Combina valores \\
+        \texttt{forEach(BiConsumer)} & Itera sobre todas las entradas \\
+    \end{tabularx}
+\end{acadtable}
+
+\subsection{Recorrido de un HashMap}
+\label{subsec:recorrido}
+
+Existen múltiples formas de recorrer un \texttt{HashMap}, cada una con sus ventajas:
+
+\begin{enumerate}
+    \item \textbf{Usando \texttt{entrySet()} con un bucle \texttt{for} mejorado} (más común y eficiente):
+    \begin{lstlisting}[language=Java, style=java]
+    for (Map.Entry<String, Integer> entry : map.entrySet()) {
+        System.out.println(entry.getKey() + " -> " + entry.getValue());
+    }
+    \end{lstlisting}
+
+    \item \textbf{Usando \texttt{keySet()}} (requiere una segunda búsqueda):
+    \begin{lstlisting}[language=Java, style=java]
+    for (String key : map.keySet()) {
+        System.out.println(key + " -> " + map.get(key));
+    }
+    \end{lstlisting}
+
+    \item \textbf{Usando \texttt{values()}} (solo valores):
+    \begin{lstlisting}[language=Java, style=java]
+    for (Integer value : map.values()) {
+        System.out.println(value);
+    }
+    \end{lstlisting}
+
+    \item \textbf{Usando \texttt{forEach()} con lambda (Java 8+)}:
+    \begin{lstlisting}[language=Java, style=java]
+    map.forEach((key, value) -> System.out.println(key + " -> " + value));
+    \end{lstlisting}
+
+    \item \textbf{Usando \texttt{Iterator} explícito} (permite eliminar durante la iteración):
+    \begin{lstlisting}[language=Java, style=java]
+    Iterator<Map.Entry<String, Integer>> it = map.entrySet().iterator();
+    while (it.hasNext()) {
+        Map.Entry<String, Integer> entry = it.next();
+        System.out.println(entry.getKey() + " -> " + entry.getValue());
+    }
+    \end{lstlisting}
+\end{enumerate}
+
+\subsection{Ejemplos y Ejercicios Prácticos}
+\label{subsec:ejemplos-practicos}
+
+\begin{ejemplo}{Básico de HashMap}
+\begin{lstlisting}[language=Java, style=java, caption={Ejemplo básico de HashMap}]
+import java.util.HashMap;
+import java.util.Map;
+
+public class Main {
+    public static void main(String[] args) {
+        HashMap<String, Integer> map = new HashMap<>();
+        map.put("Chinas", 10);
+        map.put("Uvas", 5);
+        map.put("Peras", 7);
+
+        System.out.println(map.get("Chinas")); // 10
+        System.out.println(map.containsKey("Chinas")); // true
+        map.remove("Chinas");
+
+        for (Map.Entry<String, Integer> entry : map.entrySet()) {
+            System.out.println(entry.getKey() + " -> " + entry.getValue());
+        }
+    }
+}
+\end{lstlisting}
+\end{ejemplo}
+
+\begin{ejercicio}{Gestión de Puntuaciones}
+Crea un programa que utilice un \texttt{HashMap<String, Integer>} para manejar las puntuaciones de estudiantes con los siguientes requisitos:
+\begin{enumerate}
+    \item Añade los estudiantes: Ana \(\rightarrow 85\), Luis \(\rightarrow 90\), María \(\rightarrow 78\).
+    \item Si Pedro no está en el mapa, añádelo con puntuación \(70\).
+    \item Aumenta la puntuación de Ana en \(5\) puntos.
+    \item Imprime todos los estudiantes y puntuaciones usando \texttt{entrySet()}.
+    \item Imprime el número total de estudiantes, si Luis existe, y la puntuación de Carlos (usando valor por defecto \(0\)).
+    \item Elimina a cualquier estudiante con puntuación inferior a \(80\).
+\end{enumerate}
+\end{ejercicio}
+
+\begin{lstlisting}[language=Java, style=java, caption={Solución al ejercicio de puntuaciones}]
+import java.util.HashMap;
+import java.util.Map;
+
+public class Main {
+    public static void main(String[] args) {
+        HashMap<String, Integer> students = new HashMap<>();
+        students.put("Ana", 85);
+        students.put("Luis", 90);
+        students.put("Maria", 78);
+        students.putIfAbsent("Pedro", 70);
+        students.computeIfPresent("Ana", (k, v) -> v + 5);
+
+        for (Map.Entry<String, Integer> entry : students.entrySet()) {
+            System.out.println(entry.getKey() + " -> " + entry.getValue());
+        }
+
+        System.out.println("Total de Estudiantes: " + students.size());
+        System.out.println("Luis existe? " + students.containsKey("Luis"));
+        System.out.println("Puntuacion de Carlos: " + students.getOrDefault("Carlos", 0));
+
+        students.entrySet().removeIf(entry -> entry.getValue() < 80);
+        System.out.println("Luego de remover: " + students);
+    }
+}
+\end{lstlisting}
+
+\begin{ejercicio}{Contador de Frecuencia de Palabras}
+Escribe un programa que analice un texto y cuente cuántas veces aparece cada palabra, ignorando diferencias entre mayúsculas/minúsculas y signos de puntuación. Al final, imprime cada palabra con su frecuencia y la palabra más frecuente.
+\end{ejercicio}
+
+\begin{lstlisting}[language=Java, style=java, caption={Contador de frecuencia con getOrDefault}]
+import java.util.HashMap;
+import java.util.Map;
+
+public class Main {
+    public static void main(String[] args) {
+        String text = "Java is great and Java is powerful and easy to learn";
+        HashMap<String, Integer> freq = new HashMap<>();
+        text = text.toLowerCase();
+        String[] words = text.split("\\s+");
+
+        for (String word : words) {
+            freq.put(word, freq.getOrDefault(word, 0) + 1);
+        }
+
+        for (Map.Entry<String, Integer> entry : freq.entrySet()) {
+            System.out.println(entry.getKey() + " -> " + entry.getValue());
+        }
+
+        String maxWord = "";
+        int maxCount = 0;
+        for (Map.Entry<String, Integer> entry : freq.entrySet()) {
+            if (entry.getValue() > maxCount) {
+                maxWord = entry.getKey();
+                maxCount = entry.getValue();
+            }
+        }
+        System.out.println("Most frequent: " + maxWord + " (" + maxCount + ")");
+    }
+}
+\end{lstlisting}
+
+\begin{observacion}{Uso de merge}
+Para una versión más compacta, se puede usar el método \texttt{merge()} en lugar de \texttt{getOrDefault()}:  
+\texttt{freq.merge(word, 1, Integer::sum);}  
+Este método añade 1 si la palabra no existe, o suma 1 si ya existe.
+\end{observacion}
+
+\section{Comparación: Hashtable vs. HashMap}
+\label{sec:comparacion}
+
+\begin{acadtable}[htbp]{tab:hashtable-vs-hashmap}{Comparación entre \texttt{Hashtable} y \texttt{HashMap}}
+    \begin{tabularx}{\textwidth}{l X X}
+        \headerrow
+        \textbf{Característica} & \textbf{Hashtable} & \textbf{HashMap} \\
+        \hline
+        Seguro para múltiples subprocesos & Sí (sincronizado) & No (se puede usar \texttt{Collections.synchronizedMap()}) \\
+        Rendimiento & Más lento & Más rápido \\
+        Permite claves \texttt{null} & No (lanza \texttt{NullPointerException}) & Sí (solo una clave \texttt{null}) \\
+        Permite valores \texttt{null} & No (lanza \texttt{NullPointerException}) & Sí (múltiples valores \texttt{null}) \\
+        Orden de iteración & No mantiene un orden específico & No mantiene un orden específico \\
+        Alternativa más eficiente & \texttt{ConcurrentHashMap} & \texttt{HashMap} (para aplicaciones de un solo subproceso) \\
+        Introducción & Java 1.0 (legacy) & Java 1.2 \\
+        Capacidad inicial por defecto & 11 & 16 \\
+    \end{tabularx}
+\end{acadtable}
+
+\begin{observacion}{Para usos prácticos implemente usando \texttt{HashMap}}
+Para aplicaciones de un solo subproceso, \texttt{HashMap} es la mejor opción debido a su mayor rendimiento. Si se requiere seguridad en entornos multihilo, \texttt{ConcurrentHashMap} es una alternativa más eficiente que \texttt{Hashtable}.
+\end{observacion}
+
+\section{Otros Mapas en Java}
+\label{sec:otros-mapas}
+
+Además de \texttt{Hashtable} y \texttt{HashMap}, la interfaz \texttt{Map} tiene otras implementaciones importantes: \texttt{LinkedHashMap}, \texttt{TreeMap} y \texttt{ConcurrentHashMap}.
+
+\subsection{LinkedHashMap}
+\begin{definicion}{LinkedHashMap}
+\texttt{LinkedHashMap} extiende \texttt{HashMap} y mantiene un orden de iteración. Por defecto, mantiene el \textbf{orden de inserción} (el orden en que se añadieron las claves). Si se construye con \texttt{accessOrder=true}, mantiene el \textbf{orden de acceso} (los elementos más recientemente accedidos aparecen al final).
+\end{definicion}
+
+\begin{lstlisting}[language=Java, style=java, caption={Ejemplo de LinkedHashMap}]
+LinkedHashMap<String, Integer> map = new LinkedHashMap<>();
+map.put("A", 1);
+map.put("B", 2);
+map.put("C", 3);
+// Iteración mantiene el orden de inserción: A, B, C
+\end{lstlisting}
+
+\subsection{TreeMap}
+\begin{definicion}{TreeMap}
+\texttt{TreeMap} implementa la interfaz \texttt{NavigableMap} y mantiene las claves en \textbf{orden natural} (según \texttt{Comparable}) o según un \texttt{Comparator} personalizado. Las operaciones tienen complejidad \(O(\log n)\) porque está basado en un árbol rojo-negro.
+\end{definicion}
+
+\begin{lstlisting}[language=Java, style=java, caption={Ejemplo de TreeMap}]
+TreeMap<String, Integer> map = new TreeMap<>();
+map.put("C", 3);
+map.put("A", 1);
+map.put("B", 2);
+// Iteración en orden ascendente: A, B, C
+System.out.println(map.subMap("A", "C")); // {"A":1, "B":2}
+\end{lstlisting}
+
+\subsection{ConcurrentHashMap}
+\begin{definicion}{ConcurrentHashMap}
+\texttt{ConcurrentHashMap} es una implementación de \texttt{Map} diseñada para entornos multihilo. Proporciona alta concurrencia mediante segmentación (bloqueo por bucket en lugar de bloqueo global) sin comprometer el rendimiento. Es la opción preferida sobre \texttt{Hashtable} en aplicaciones concurrentes.
+\end{definicion}
+
+\begin{lstlisting}[language=Java, style=java, caption={Ejemplo de ConcurrentHashMap}]
+ConcurrentHashMap<String, Integer> map = new ConcurrentHashMap<>();
+map.put("A", 1);
+map.put("B", 2);
+// Operaciones seguras en múltiples hilos
+\end{lstlisting}
+
+\subsection{Tabla Comparativa de Mapas}
+\begin{acadtable}[htbp]{tab:comparacion-mapas}{Comparación de implementaciones de \texttt{Map}}
+    \begin{tabularx}{\textwidth}{l X X X}
+        \headerrow
+        \textbf{Característica} & \textbf{HashMap} & \textbf{LinkedHashMap} & \textbf{TreeMap} \\
+        \hline
+        Orden de iteración & No garantizado & Orden de inserción o acceso & Orden natural o personalizado \\
+        Complejidad (búsqueda) & \(O(1)\) promedio & \(O(1)\) promedio & \(O(\log n)\) \\
+        Permite claves \texttt{null} & Sí (una) & Sí (una) & No (si se usa orden natural) \\
+        Sincronizado & No & No & No \\
+        Consultas por rango & Ineficiente & Ineficiente & Eficiente (\texttt{subMap}) \\
+        Uso recomendado & Búsquedas rápidas sin orden & Orden de inserción/ acceso & Orden natural y consultas por rango \\
+    \end{tabularx}
+\end{acadtable}
+
+\section{Cómo elegir el mapa adecuado según el problema}
+\label{sec:elegir-mapa}
+
+\begin{itemize}
+    \item \textbf{HashMap}: Úsalo cuando necesites búsquedas ultrarrápidas (\(O(1)\)), no te importe el orden y la aplicación sea de un solo subproceso. Es la opción por defecto para la mayoría de los casos.
+    \item \textbf{LinkedHashMap}: Úsalo cuando necesites mantener el orden de inserción (o acceso) y quieras seguir teniendo \(O(1)\) en operaciones.
+    \item \textbf{TreeMap}: Úsalo cuando necesites las claves ordenadas naturalmente, o necesites consultas por rango (por ejemplo, \texttt{subMap}), y aceptes \(O(\log n)\).
+    \item \textbf{ConcurrentHashMap}: Úsalo cuando la aplicación sea multihilo y necesites máxima concurrencia sin bloqueos globales.
+    \item \textbf{Hashtable}: No lo uses en código nuevo. Si trabajas con código legacy, considera migrar a \texttt{ConcurrentHashMap}.
+\end{itemize}
+
+\section{Puente hacia Árboles}
+\label{sec:puente-arboles}
+
+Hasta ahora, hemos visto que los mapas basados en hashing (\texttt{Hashtable}, \texttt{HashMap}) ofrecen un acceso muy rápido (\(O(1)\) promedio) pero con dos limitaciones importantes:
+
+1. \textbf{No mantienen un orden} de las claves (el orden de iteración es impredecible).
+2. \textbf{No permiten consultas por rango} (por ejemplo, "todas las claves entre 10 y 20") de manera eficiente.
+
+Para superar estas limitaciones, surgen las estructuras de datos basadas en \textbf{árboles}, en particular los \textbf{Árboles Binarios de Búsqueda (BST)} y sus variantes balanceadas como los árboles rojo-negros (Red-Black Trees). De hecho, el propio \texttt{TreeMap} es una implementación de un árbol rojo-negro.
+
+\begin{definicion}{Árbol}
+Un \textbf{árbol} es una estructura de datos jerárquica que consiste en nodos conectados por aristas. Cada nodo puede tener cero o más nodos hijos. En los árboles binarios, cada nodo tiene como máximo dos hijos: izquierdo y derecho.
+\end{definicion}
+
+\subsection{Conceptos Básicos de Árboles}
+\begin{itemize}
+    \item \textbf{Nodo raíz}: El nodo más alto del árbol (sin padre).
+    \item \textbf{Nodos padre e hijo}: Nodos conectados por una arista, donde el padre apunta a uno o más hijos.
+    \item \textbf{Nodos hoja}: Nodos que no tienen hijos.
+    \item \textbf{Profundidad}: Distancia desde la raíz hasta el nodo.
+    \item \textbf{Altura}: Camino más largo desde el nodo hasta una hoja.
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[font=\sffamily, level distance=1.5cm, level 1/.style={sibling distance=2.5cm}, level 2/.style={sibling distance=1.5cm}]
+        \node[draw, rectangle, fill=CtpBlue!30] {Raíz}
+            child { node[draw, rectangle, fill=CtpGreen!30] {Hijo 1}
+                child { node[draw, rectangle, fill=CtpPeach!30] {Hoja 1} }
+                child { node[draw, rectangle, fill=CtpPeach!30] {Hoja 2} }
+            }
+            child { node[draw, rectangle, fill=CtpGreen!30] {Hijo 2}
+                child { node[draw, rectangle, fill=CtpPeach!30] {Hoja 3} }
+                child { node[draw, rectangle, fill=CtpPeach!30] {Hoja 4} }
+            };
+    \end{tikzpicture}
+    \caption{Ejemplo de un árbol binario. La raíz tiene dos hijos (Hijo 1, Hijo 2), y cada hijo tiene dos hojas.}
+    \label{fig:arbol-ejemplo}
+\end{figure}
+
+\subsection{Comparación: HashMap vs. Árboles}
+\begin{acadtable}[htbp]{tab:hashmap-vs-arboles}{Comparación: HashMap vs. Árboles (BST/Red-Black Tree)}
+    \begin{tabularx}{\textwidth}{l X X}
+        \headerrow
+        \textbf{Criterio} & \textbf{HashMap} & \textbf{Árboles (BST, Red-Black Tree)} \\
+        \hline
+        Orden de los datos & No garantizado & Mantiene orden natural o personalizado \\
+        Búsqueda & \(O(1)\) promedio, \(O(n)\) peor caso & \(O(\log n)\) en balanceados \\
+        Inserción & \(O(1)\) promedio & \(O(\log n)\) en balanceados \\
+        Recorrido ordenado & No (excepto con \texttt{LinkedHashMap}) & Sí (inorden, preorden, postorden) \\
+        Uso de memoria & Puede desperdiciar espacio (factor de carga, rehashing) & Más eficiente en memoria para conjuntos pequeños \\
+        Rango de consultas (range queries) & Ineficiente (necesita recorrido completo) & Eficiente (recorrido parcial) \\
+        Rendimiento predecible & No (depende de colisiones) & Sí (si está balanceado) \\
+    \end{tabularx}
+\end{acadtable}
+
+\begin{observacion}{Cuándo usar HashMap y cuándo Árboles}
+Java utiliza internamente árboles rojo-negros dentro de \texttt{HashMap} para optimizar las colisiones, pero estos árboles no son accesibles directamente como una estructura de datos ordenada. Para ordenar claves, se debe usar \texttt{TreeMap} (basado en Red-Black Trees) o \texttt{LinkedHashMap} (basado en lista enlazada + hashing).
+\end{observacion}
+
+\subsection{De los Mapas a los Árboles}
+
+La transición hacia los árboles es natural cuando se necesita:
+\begin{itemize}
+    \item Mantener las claves ordenadas de forma natural (por ejemplo, números o strings en orden lexicográfico).
+    \item Realizar consultas por rango (por ejemplo, "obtener todas las claves entre 10 y 20").
+    \item Tener un rendimiento predecible en el peor caso (sin degradación a \(O(n)\) debido a colisiones).
+\end{itemize}
+
+\section{Ejercicio Adicional (Opción Extra)}
+\label{sec:ejercicio-extra}
+
+\begin{ejercicio}
+Dado un conjunto de palabras, implementa un programa que:
+\begin{enumerate}
+    \item Almacene las palabras en un \texttt{HashMap} con su frecuencia.
+    \item Convierta las frecuencias en un árbol binario de búsqueda (puedes simularlo con un \texttt{TreeMap}) donde la clave sea la palabra y el valor la frecuencia.
+    \item Explique las diferencias de rendimiento entre las dos implementaciones para una búsqueda por palabra y para una búsqueda por rango (todas las palabras con frecuencia > 10).
+\end{enumerate}
+\end{ejercicio}
+
+
+
+\printbibliography[heading=subbibliography]

@@ -1,0 +1,469 @@
+% ============================================================
+%  Chapter 4: Árboles Binarios de Búsqueda (BST)
+%  Template: latex-catppuccin-academic  |  Motor: pdflatex
+%
+%  Dependencias heredadas del Chapter 3:
+%      \usepackage{forest}   % ya debe estar en config/packages.tex
+% ============================================================
+
+\chapter{Árboles Binarios de Búsqueda (\textit{Binary Search Trees})}
+\label{ch:bst}
+
+Un árbol binario genérico, tal como se estudió en el capítulo anterior, impone únicamente
+una restricción estructural: cada nodo tiene a lo sumo dos hijos. Esta restricción no dice
+nada sobre el \emph{contenido} de los nodos ni sobre la relación entre las claves almacenadas
+en distintas posiciones del árbol. Un \textbf{árbol binario de búsqueda} (\textit{Binary
+Search Tree}, BST) agrega una \emph{propiedad de orden} que convierte la estructura en una
+herramienta de búsqueda eficiente, y es precisamente la base interna de \texttt{TreeMap} y
+\texttt{TreeSet} en Java.
+
+% ------------------------------------------------------------
+\section{Definición y Propiedad de Orden}
+\label{sec:bst-definicion}
+% ------------------------------------------------------------
+
+\begin{definicion}{Árbol Binario de Búsqueda (BST)}
+Un \textbf{BST} es un árbol binario en el que cada nodo almacena una clave única, y para
+todo nodo $v$ con clave $k(v)$ se cumple:
+\[
+    \forall\, u \in T_{v.\mathit{left}}  : k(u) < k(v),
+    \qquad
+    \forall\, w \in T_{v.\mathit{right}} : k(w) > k(v),
+\]
+donde $T_{v.\mathit{left}}$ y $T_{v.\mathit{right}}$ denotan los subárboles izquierdo y
+derecho de $v$, respectivamente. La propiedad es \textbf{recursiva}: debe satisfacerse
+en cada nodo del árbol, no únicamente en la raíz.
+\end{definicion}
+
+La recursividad de la propiedad es fundamental. Un árbol puede parecer localmente correcto
+en la raíz y violar el orden en un nodo interior. La figura siguiente ilustra ambos casos:
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.47\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpGreen, fill=CtpGreen!20, text=CtpText,
+                       minimum size=0.9cm, inner sep=1pt, l sep=12mm, s sep=8mm,
+                       font=\sffamily\small}
+            [30 [15 [10][20]] [50 [40][70]]]
+        \end{forest}
+        \par\smallskip
+        {\small\color{CtpGreen}\textbf{BST válido} — la propiedad de orden se
+        cumple en todos los nodos.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.47\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpRed, fill=CtpRed!15, text=CtpText,
+                       minimum size=0.9cm, inner sep=1pt, l sep=12mm, s sep=8mm,
+                       font=\sffamily\small}
+            [30 [15 [10][20]] [50 [55][70]]]
+        \end{forest}
+        \par\smallskip
+        {\small\color{CtpRed}\textbf{No válido} — el nodo $55$ está en el subárbol
+        izquierdo de $50$, pero $55 > 50$.}
+    \end{minipage}
+    \caption{BST válido (izquierda) vs.\ no válido (derecha). La violación en el árbol
+             de la derecha ocurre en un nodo interior ($50$), no en la raíz, lo que
+             ilustra la necesidad de verificar la propiedad de forma recursiva.}
+    \label{fig:bst-valido-invalido}
+\end{figure}
+
+\begin{observacion}{In-order como verificación}
+El recorrido in-order de un BST produce las claves en orden estrictamente ascendente. Esta
+propiedad es consecuencia directa de la definición: en cada nodo $v$, el subárbol izquierdo
+contiene claves menores que $k(v)$ y el subárbol derecho las mayores, que es exactamente
+el orden en que los visita el in-order $(L, \text{Raíz}, R)$. Verificar que el in-order
+produce una secuencia ascendente es condición necesaria y suficiente para validar que un
+árbol es un BST correcto.
+\end{observacion}
+
+% ------------------------------------------------------------
+\section{Búsqueda}
+\label{sec:bst-busqueda}
+% ------------------------------------------------------------
+
+La búsqueda en un BST explota la propiedad de orden para descartar un subárbol completo
+en cada comparación, de manera análoga a la búsqueda binaria en un arreglo ordenado.
+
+\begin{algorithm}[H]
+\caption{Búsqueda en un BST}
+\label{alg:bst-search}
+\KwIn{Nodo raíz $v$, clave $k$ buscada}
+\KwOut{Nodo con clave $k$, o \texttt{null} si no existe}
+\If{$v = \texttt{null}$}{\Return \texttt{null}}
+\If{$k = k(v)$}{\Return $v$}
+\If{$k < k(v)$}{\Return \texttt{search}$(v.\mathit{left},\; k)$}
+\Return \texttt{search}$(v.\mathit{right},\; k)$\;
+\end{algorithm}
+
+Cada llamada recursiva descarta el subárbol que no puede contener la clave. La complejidad
+es $O(H)$, donde $H$ es la altura del árbol. En un BST balanceado $H = O(\log n)$; en el
+peor caso $H = O(n)$, como se verá en la \cref{sec:bst-complejidad}.
+
+\begin{observacion}{Analogía con búsqueda binaria}
+La búsqueda en un BST y la búsqueda binaria en un arreglo ordenado son estructuralmente
+idénticas: en cada paso se compara la clave buscada con un elemento pivote y se descarta
+la mitad del espacio de búsqueda restante. La diferencia es que en el arreglo el pivote
+es el elemento central (acceso por índice), mientras que en el BST el pivote es la clave
+del nodo actual y el ``descarte'' ocurre siguiendo un puntero. Ambos algoritmos tienen
+complejidad $O(\log n)$ cuando la estructura está balanceada.
+\end{observacion}
+
+% ------------------------------------------------------------
+\section{Inserción}
+\label{sec:bst-insercion}
+% ------------------------------------------------------------
+
+La inserción sigue exactamente el mismo camino que la búsqueda. Se recorre el árbol
+comparando la nueva clave con la clave de cada nodo hasta encontrar una posición
+\texttt{null}, que es donde se inserta el nuevo nodo. Si la clave ya existe, no se
+realiza ninguna acción (el BST no admite duplicados).
+
+\begin{algorithm}[H]
+\caption{Inserción en un BST}
+\label{alg:bst-insert}
+\KwIn{Nodo raíz $v$, clave $k$ a insertar}
+\KwOut{Raíz del árbol actualizado}
+\If{$v = \texttt{null}$}{\Return \textbf{nuevoNodo}$(k)$}
+\If{$k < k(v)$}{$v.\mathit{left} \leftarrow$ \texttt{insert}$(v.\mathit{left},\; k)$}
+\ElseIf{$k > k(v)$}{$v.\mathit{right} \leftarrow$ \texttt{insert}$(v.\mathit{right},\; k)$}
+\Return $v$\;
+\end{algorithm}
+
+\begin{ejemplo}{Construcción de un BST por inserción secuencial}
+Insertando las claves $30,\; 15,\; 50,\; 10,\; 20,\; 40,\; 70$ en ese orden en un BST
+vacío, cada clave sigue el camino que usaría la búsqueda hasta encontrar la primera
+posición \texttt{null}. La \cref{tab:bst-insercion} detalla la trayectoria de cada clave
+y la \cref{fig:bst-insercion} muestra el árbol resultante, cuyo in-order produce
+$10, 15, 20, 30, 40, 50, 70$ —secuencia estrictamente ascendente, confirmando que la
+propiedad BST se preservó en todas las inserciones.
+\end{ejemplo}
+
+\begin{acadtable}[htbp]{tab:bst-insercion}{Trayectoria de inserción para cada clave}
+    \begin{tabularx}{\textwidth}{c l X}
+        \headerrow
+        \textbf{Clave} & \textbf{Camino recorrido} & \textbf{Posición final} \\
+        \hline
+        $30$ & (árbol vacío)                         & Raíz \\
+        $15$ & $30 \to$ izq                          & Hijo izquierdo de $30$ \\
+        $50$ & $30 \to$ der                          & Hijo derecho de $30$ \\
+        $10$ & $30 \to$ izq $\to 15 \to$ izq        & Hijo izquierdo de $15$ \\
+        $20$ & $30 \to$ izq $\to 15 \to$ der        & Hijo derecho de $15$ \\
+        $40$ & $30 \to$ der $\to 50 \to$ izq        & Hijo izquierdo de $50$ \\
+        $70$ & $30 \to$ der $\to 50 \to$ der        & Hijo derecho de $50$ \\
+    \end{tabularx}
+\end{acadtable}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{forest}
+        for tree={
+            circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+            minimum size=0.9cm, inner sep=2pt, l sep=13mm, s sep=9mm,
+            font=\sffamily\small
+        }
+        [30 [15 [10][20]] [50 [40][70]]]
+    \end{forest}
+    \caption{BST resultante de insertar $30, 15, 50, 10, 20, 40, 70$ en ese orden.
+             La raíz $30$ es la mediana del conjunto, lo que produce un árbol
+             perfectamente balanceado de altura $2$.}
+    \label{fig:bst-insercion}
+\end{figure}
+
+\begin{observacion}{El orden de inserción determina la forma del árbol}
+La misma secuencia de claves produce distintos árboles según el orden en que se insertan.
+El árbol del ejemplo anterior es perfectamente balanceado porque $30$ es la mediana del
+conjunto. Si la primera clave insertada fuera $10$ (el mínimo), el árbol degeneraría hacia
+la derecha. Este fenómeno se estudia en detalle en la \cref{sec:bst-complejidad}.
+\end{observacion}
+
+% ------------------------------------------------------------
+\section{Eliminación}
+\label{sec:bst-eliminacion}
+% ------------------------------------------------------------
+
+La eliminación es la operación más compleja del BST. El procedimiento depende del número
+de hijos del nodo a eliminar y se divide en tres casos mutuamente excluyentes.
+
+\subsection{Caso 1 — Nodo hoja}
+\label{subsec:caso1}
+
+\begin{definicion}{Eliminación: Caso 1}
+Si el nodo a eliminar es una \textbf{hoja} (sin hijos), se elimina directamente. El padre
+actualiza el puntero correspondiente a \texttt{null}.
+\end{definicion}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=12mm, s sep=8mm,
+                       font=\sffamily\small}
+            [30 [15 [10, fill=CtpRed!30, draw=CtpRed][20]] [50]]
+        \end{forest}
+        \par\smallskip{\small Antes: \texttt{remove(10)}}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=12mm, s sep=8mm,
+                       font=\sffamily\small}
+            [30 [15 [,phantom,draw=none,fill=none][20]] [50]]
+        \end{forest}
+        \par\smallskip{\small Después: el padre 15 apunta a \texttt{null}.}
+    \end{minipage}
+    \caption{Eliminación Caso 1: el nodo $10$ es hoja y se elimina directamente.}
+    \label{fig:bst-caso1}
+\end{figure}
+
+\subsection{Caso 2 — Nodo con un hijo}
+\label{subsec:caso2}
+
+\begin{definicion}{Eliminación: Caso 2}
+Si el nodo a eliminar tiene \textbf{exactamente un hijo}, el padre del nodo eliminado
+adopta directamente a ese hijo: el puntero del padre que apuntaba al nodo eliminado
+pasa a apuntar al único hijo del nodo eliminado.
+\end{definicion}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=12mm, s sep=8mm,
+                       font=\sffamily\small}
+            [30 [15, fill=CtpRed!30, draw=CtpRed [,phantom,draw=none,fill=none][20]]
+                [50]]
+        \end{forest}
+        \par\smallskip{\small Antes: \texttt{remove(15)}, que tiene solo hijo derecho.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=12mm, s sep=8mm,
+                       font=\sffamily\small}
+            [30 [20][50]]
+        \end{forest}
+        \par\smallskip{\small Después: el padre $30$ adopta directamente a $20$.}
+    \end{minipage}
+    \caption{Eliminación Caso 2: el nodo $15$ tiene un único hijo ($20$). El padre $30$
+             pasa a apuntar directamente a $20$.}
+    \label{fig:bst-caso2}
+\end{figure}
+
+\subsection{Caso 3 — Nodo con dos hijos}
+\label{subsec:caso3}
+
+\begin{definicion}{Eliminación: Caso 3}
+Si el nodo a eliminar tiene \textbf{dos hijos}, se reemplaza su clave por la del
+\textbf{predecesor in-order}: el mayor de todos sus descendientes izquierdos. Luego
+se elimina el predecesor in-order de su posición original.
+\end{definicion}
+
+El predecesor in-order se localiza en $O(H)$ sin recorrer el árbol completo:
+
+\begin{center}
+\textit{Desde el nodo a eliminar: un paso a la izquierda, luego todo lo que se pueda
+a la derecha.}
+\end{center}
+
+La elección del predecesor in-order como sustituto no es arbitraria. Es el único nodo
+que satisface simultáneamente las dos condiciones que preservan la propiedad BST:
+
+\begin{itemize}
+    \item Es \textbf{menor que todo el subárbol derecho} del nodo eliminado, porque
+          pertenece al subárbol izquierdo.
+    \item Es \textbf{mayor que todo el resto del subárbol izquierdo}, porque es el
+          máximo de ese subárbol.
+\end{itemize}
+
+Además, el predecesor in-order \textbf{nunca tiene hijo derecho} —si lo tuviera, ese
+hijo sería mayor y él no sería el máximo del subárbol izquierdo—, por lo que su
+eliminación de la posición original es siempre Caso 1 o Caso 2, nunca Caso 3.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=12mm, s sep=7mm,
+                       font=\sffamily\small}
+            [30, fill=CtpRed!30, draw=CtpRed
+                [15 [10][20, fill=CtpBlue!35, draw=CtpBlue]]
+                [50 [40][70]]]
+        \end{forest}
+        \par\smallskip{\small Antes: \texttt{remove(30)}. Predecesor in-order
+        (en azul): $20$.}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpOverlay2, fill=CtpSurface0, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt, l sep=12mm, s sep=7mm,
+                       font=\sffamily\small}
+            [20 [15 [10][,phantom,draw=none,fill=none]] [50 [40][70]]]
+        \end{forest}
+        \par\smallskip{\small Después: $20$ reemplaza a $30$. Su posición original
+        (hijo derecho de $15$) queda vacía — Caso 1.}
+    \end{minipage}
+    \caption{Eliminación Caso 3: \texttt{remove(30)}. El predecesor in-order ($20$) se
+             obtiene yendo un paso a la izquierda ($15$) y luego todo a la derecha ($20$,
+             sin hijo derecho). Reemplaza a $30$ y su eliminación original es Caso 1.}
+    \label{fig:bst-caso3}
+\end{figure}
+
+\begin{algorithm}[H]
+\caption{Eliminación en un BST}
+\label{alg:bst-delete}
+\KwIn{Nodo raíz $v$, clave $k$ a eliminar}
+\KwOut{Raíz del árbol actualizado}
+\If{$v = \texttt{null}$}{\Return \texttt{null}}
+\If{$k < k(v)$}{
+    $v.\mathit{left} \leftarrow$ \texttt{delete}$(v.\mathit{left},\; k)$\;
+    \Return $v$\;
+}
+\If{$k > k(v)$}{
+    $v.\mathit{right} \leftarrow$ \texttt{delete}$(v.\mathit{right},\; k)$\;
+    \Return $v$\;
+}
+\tcc{Nodo encontrado — tres casos:}
+\If{$v.\mathit{left} = \texttt{null}$ \textbf{and} $v.\mathit{right} = \texttt{null}$}{
+    \Return \texttt{null}\; \tcc*{Caso 1: hoja}
+}
+\If{$v.\mathit{left} = \texttt{null}$}{
+    \Return $v.\mathit{right}$\; \tcc*{Caso 2: solo hijo derecho}
+}
+\If{$v.\mathit{right} = \texttt{null}$}{
+    \Return $v.\mathit{left}$\; \tcc*{Caso 2: solo hijo izquierdo}
+}
+\tcc{Caso 3: dos hijos — buscar predecesor in-order}
+$p \leftarrow v.\mathit{left}$\;
+\While{$p.\mathit{right} \neq \texttt{null}$}{
+    $p \leftarrow p.\mathit{right}$\;
+}
+$k(v) \leftarrow k(p)$\;
+$v.\mathit{left} \leftarrow$ \texttt{delete}$(v.\mathit{left},\; k(p))$\;
+\Return $v$\;
+\end{algorithm}
+
+% ------------------------------------------------------------
+\section{Complejidad}
+\label{sec:bst-complejidad}
+% ------------------------------------------------------------
+
+Toda operación del BST —búsqueda, inserción, eliminación— es $O(H)$, donde $H$ es la
+altura del árbol. La complejidad efectiva depende de cuánto vale $H$, que a su vez depende
+del orden en que se insertan las claves.
+
+\begin{acadtable}[htbp]{tab:bst-complejidad}{Complejidad de las operaciones en un BST}
+    \begin{tabularx}{\textwidth}{l c c}
+        \headerrow
+        \textbf{Operación} & \textbf{Caso promedio} & \textbf{Peor caso} \\
+        \hline
+        Búsqueda   & $O(\log n)$ & $O(n)$ \\
+        Inserción  & $O(\log n)$ & $O(n)$ \\
+        Eliminación & $O(\log n)$ & $O(n)$ \\
+    \end{tabularx}
+\end{acadtable}
+
+El peor caso ocurre cuando las claves se insertan en orden estrictamente creciente o
+decreciente. En ese escenario, cada nueva clave es siempre mayor (o siempre menor) que
+todas las anteriores, por lo que se inserta sistemáticamente como hijo derecho (o izquierdo)
+del último nodo. El árbol degenera en una lista enlazada con $H = n - 1$:
+
+\begin{figure}[htbp]
+    \centering
+    \begin{minipage}{0.35\textwidth}
+        \centering
+        \begin{forest}
+            for tree={circle, draw=CtpRed, fill=CtpRed!15, text=CtpText,
+                       minimum size=0.85cm, inner sep=1pt,
+                       l sep=11mm, s sep=8mm,
+                       font=\sffamily\small,
+                       grow=south}
+            [10 [,phantom,draw=none,fill=none]
+                [20 [,phantom,draw=none,fill=none]
+                    [30 [,phantom,draw=none,fill=none]
+                        [40 [,phantom,draw=none,fill=none]
+                            [50]]]]]
+        \end{forest}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.58\textwidth}
+        \small
+        Secuencia de inserción: $10, 20, 30, 40, 50$.\\[6pt]
+        Cada clave es mayor que todas las anteriores,
+        por lo que se inserta siempre como hijo derecho
+        del nodo hoja actual.\\[6pt]
+        Resultado: $H = 4 = n - 1$.\\[6pt]
+        Una búsqueda de $50$ requiere $5$ comparaciones
+        —equivalente a una búsqueda lineal en una lista
+        de $5$ elementos.
+    \end{minipage}
+    \caption{Árbol BST degenerado por inserción en orden creciente. La altura es $n-1$
+             en lugar del óptimo $\lfloor\log_2 n\rfloor = 2$. El árbol ha perdido toda
+             ventaja sobre una lista enlazada.}
+    \label{fig:bst-degenerado}
+\end{figure}
+
+\begin{observacion}{La mediana como primer elemento}
+Si se elige como primera clave a insertar la mediana del conjunto, y se repite la estrategia
+recursivamente en cada subárbol, el BST resultante es perfectamente balanceado con
+$H = \lfloor\log_2 n\rfloor$. En la práctica esto raramente se conoce de antemano, lo que
+motiva el uso de estructuras auto-balanceadas como los árboles AVL o rojo-negro, que
+garantizan $H = O(\log n)$ independientemente del orden de inserción.
+\end{observacion}
+
+% ------------------------------------------------------------
+\section{Ejercicios}
+\label{sec:bst-ejercicios}
+% ------------------------------------------------------------
+
+\begin{ejercicio}
+Inserte las siguientes claves en un BST vacío, en el orden indicado:
+\[
+    45,\; 25,\; 60,\; 10,\; 30,\; 55,\; 70,\; 5,\; 28,\; 50
+\]
+\textbf{(1)} Dibuje el árbol resultante. \textbf{(2)} Determine si es completo, lleno
+y balanceado. \textbf{(3)} Escriba los recorridos pre-order, in-order y post-order.
+\textbf{(4)} Verifique que el in-order produce una secuencia ascendente.
+\end{ejercicio}
+
+\begin{ejercicio}
+Dado el árbol del ejercicio anterior, realice las siguientes eliminaciones en secuencia
+(cada una parte del resultado de la anterior). Para cada eliminación, indique el caso
+que aplica (hoja / un hijo / dos hijos), muestre el camino al predecesor in-order si
+corresponde, y dibuje el árbol resultante.
+
+\[
+    \texttt{remove}(10), \quad \texttt{remove}(60), \quad \texttt{remove}(45)
+\]
+\end{ejercicio}
+
+\begin{ejercicio}
+Considere las dos secuencias de inserción siguientes sobre el mismo conjunto de claves
+$\{5, 10, 15, 20, 25, 30\}$:
+\begin{itemize}
+    \item Secuencia A: $15,\; 10,\; 25,\; 5,\; 20,\; 30$
+    \item Secuencia B: $5,\; 10,\; 15,\; 20,\; 25,\; 30$
+\end{itemize}
+\textbf{(1)} Dibuje el BST resultante para cada secuencia. \textbf{(2)} Calcule la
+altura de cada árbol. \textbf{(3)} Determine cuántas comparaciones requiere buscar la
+clave $30$ en cada árbol. \textbf{(4)} Explique por qué ambos árboles producen el mismo
+in-order pero tienen rendimientos de búsqueda distintos.
+\end{ejercicio}
+
+
+\printbibliography[heading=subbibliography]
